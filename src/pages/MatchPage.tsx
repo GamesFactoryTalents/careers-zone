@@ -118,8 +118,8 @@ export default function MatchPage() {
                   <span className="text-xs font-display text-muted-foreground">Not this time</span>
                 </button>
                 <button onClick={handleMatch} aria-label="I'm interested" className="flex flex-col items-center gap-1.5 group">
-                  <span className="h-14 w-14 rounded-full border border-primary/60 flex items-center justify-center bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                    <Handshake className="h-6 w-6 text-primary" />
+                  <span className="h-14 w-14 rounded-full border border-xp/60 flex items-center justify-center bg-xp/10 group-hover:bg-xp/20 transition-colors">
+                    <Handshake className="h-6 w-6 text-xp" />
                   </span>
                   <span className="text-xs font-display text-foreground">I'm interested</span>
                 </button>
