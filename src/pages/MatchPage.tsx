@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { RotateCcw, Heart, ArrowRight, Handshake } from "lucide-react";
+import { RotateCcw, Heart, ArrowLeft, Handshake } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SwipeCard from "@/components/SwipeCard";
 import JobCard from "@/components/JobCard";
@@ -113,7 +113,7 @@ export default function MatchPage() {
               <div className="shrink-0 py-4 flex justify-center items-start gap-8">
                 <button onClick={handleSkip} aria-label="Not this time" className="flex flex-col items-center gap-1.5 group">
                   <span className="h-14 w-14 rounded-full border border-border flex items-center justify-center bg-card group-hover:bg-muted transition-colors">
-                    <ArrowRight className="h-6 w-6 text-muted-foreground" />
+                    <ArrowLeft className="h-6 w-6 text-muted-foreground" />
                   </span>
                   <span className="text-xs font-display text-muted-foreground">Not this time</span>
                 </button>
