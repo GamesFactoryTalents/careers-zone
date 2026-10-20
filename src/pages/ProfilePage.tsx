@@ -12,9 +12,12 @@ import { useProfile } from "@/hooks/useProfile";
 import { GAME_ROLES, EXPERIENCE_LEVELS, SKILLS, GENRES, WORK_MODES, STUDIO_SIZES, AVAILABILITY_OPTIONS, LANGUAGES } from "@/types/profile";
 import { toast } from "sonner";
 import PremiumBanner from "@/components/PremiumBanner";
+import AccountSignOutButton from "@/components/AccountSignOutButton";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function ProfilePage() {
   const { profile, updateProfile, profileCompleteness } = useProfile();
+  const { demoAccountType } = useAuth();
   const [skillInput, setSkillInput] = useState("");
   const [saved, setSaved] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -57,6 +60,10 @@ export default function ProfilePage() {
   };
 
   const handleSave = () => {
+    if (demoAccountType) {
+      toast.info("Demo changes aren't saved. Create an account to save your profile.");
+      return;
+    }
     setSaved(true);
     toast.success("Profile saved!");
     setTimeout(() => setSaved(false), 2000);
@@ -78,6 +85,7 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-6 pb-4">
+      <div className="flex justify-end"><AccountSignOutButton /></div>
       {/* Profile picture + header */}
       <div className="flex flex-col items-center space-y-3">
         <div className="relative cursor-pointer group" onClick={() => avatarInputRef.current?.click()}>

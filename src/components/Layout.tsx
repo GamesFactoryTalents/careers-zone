@@ -1,6 +1,8 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { Home, Gamepad2, Briefcase, User, Bot, Building2, CalendarDays, MessageSquareText } from "lucide-react";
 import { useRecruiter } from "@/context/RecruiterContext";
+import { useAuth } from "@/hooks/useAuth";
+import AccountSignOutButton from "@/components/AccountSignOutButton";
 
 const talentTabs = [
   { path: "/", label: "Home", icon: Home },
@@ -16,10 +18,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { viewMode } = useRecruiter();
+  const { demoAccountType } = useAuth();
   const tabs =
     viewMode === "recruiter"
       ? talentTabs.map((t) => {
           if (t.path === "/profile") return { ...t, label: "Company", icon: Building2 };
+          if (t.path === "/jobs") return { ...t, label: "Talent", icon: User };
           if (t.path === "/ai-coach") return { ...t, label: "Recruitment Coach", icon: Bot };
           return t;
         })
@@ -30,6 +34,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <div className={`flex flex-col bg-background ${isMatchPage ? "h-screen overflow-hidden" : "min-h-screen"}`}>
       {/* Content */}
       <main className={`flex-1 pb-20 ${isMatchPage ? "flex flex-col" : "overflow-y-auto"}`}>
+        {demoAccountType && (
+          <div className="mx-auto mt-3 flex max-w-lg items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent/10 px-3 py-2">
+            <p className="text-xs text-muted-foreground">
+              {demoAccountType === "talent" ? "Talent" : "Recruiter"} demo — no account/profile created; data isn't sent to Supabase.
+            </p>
+            <AccountSignOutButton />
+          </div>
+        )}
         <div className={`${isMatchPage ? "flex-1 flex flex-col px-4 py-4" : "max-w-lg mx-auto px-4 py-4"}`}>
           {children}
         </div>

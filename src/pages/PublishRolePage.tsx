@@ -104,7 +104,7 @@ export default function PublishRolePage() {
     await runExtraction({ url });
   };
 
-  const handlePublish = () => {
+  const handlePublish = async () => {
     if (!draft) return;
     if (!hasCompany) {
       toast.error("Add your company name first");
@@ -114,9 +114,13 @@ export default function PublishRolePage() {
       toast.error("A role needs at least a title and a description");
       return;
     }
-    const job = publishJob(draft);
-    toast.success(`"${job.title}" is live for talents`);
-    navigate("/");
+    try {
+      const job = await publishJob(draft);
+      toast.success(`"${job.title}" is live for talents`);
+      navigate("/");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't publish this role.");
+    }
   };
 
   const set = (updates: Partial<JobDraft>) => setDraft((d) => (d ? { ...d, ...updates } : d));

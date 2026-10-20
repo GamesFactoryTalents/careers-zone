@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import XPBar from "@/components/XPBar";
 import PremiumBanner from "@/components/PremiumBanner";
 import { useProfile } from "@/hooks/useProfile";
-import { useMatches } from "@/hooks/useMatches";
+import { useMatchmaking } from "@/hooks/useMatchmaking";
 import { useRecruiter } from "@/context/RecruiterContext";
 import ViewModeSwitch from "@/components/ViewModeSwitch";
 import RecruiterHome from "@/components/recruiter/RecruiterHome";
@@ -42,10 +42,19 @@ export default function HomePage() {
 function TalentHome() {
   const navigate = useNavigate();
   const { profileCompleteness } = useProfile();
-  const { matches, recruiterInterest } = useMatches();
+  const { user, profiles, interests } = useMatchmaking();
   const { allJobs } = useRecruiter();
   const completion = profileCompleteness();
   const tip = tips[Math.floor(Math.random() * tips.length)];
+  const matches = interests.filter((interest) =>
+    interest.status === "accepted" && (interest.sender_id === user?.id || interest.receiver_id === user?.id),
+  );
+  const recruiterInterest = interests.find((interest) =>
+    interest.receiver_id === user?.id && interest.interest_type === "talent" && interest.status === "pending",
+  );
+  const interestedRecruiter = recruiterInterest
+    ? profiles.find((profile) => profile.user_id === recruiterInterest.sender_id)
+    : undefined;
 
   return (
     <div className="space-y-6">
@@ -125,14 +134,17 @@ function TalentHome() {
         ))}
       </div>
 
-      {recruiterInterest.length > 0 && (
+      {recruiterInterest && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className="rounded-xl border border-xp/30 bg-xp/10 p-4"
         >
           <h4 className="font-display text-xs font-bold text-xp mb-2">RECRUITER INTEREST</h4>
-          <p className="text-xs text-muted-foreground leading-relaxed">{recruiterInterest[0].company} is interested in your profile for <span className="font-medium text-foreground">{recruiterInterest[0].jobTitle}</span>.</p>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            {interestedRecruiter?.full_name || "A recruiter"} from {interestedRecruiter?.company_name || "a studio"} is interested in your profile.
+            <button onClick={() => navigate("/match")} className="ml-1 font-medium text-primary underline">Review request</button>
+          </p>
         </motion.div>
       )}
 

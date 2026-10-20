@@ -1,15 +1,16 @@
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Filter, X, ExternalLink, Heart } from "lucide-react";
+import { Search, Filter, X, ExternalLink, Heart, Building2, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import JobCard from "@/components/JobCard";
-import { JOBS, JOB_CATEGORIES, JOB_LOCATIONS, type Job } from "@/data/jobs";
-import { useMatches } from "@/hooks/useMatches";
+import { JOB_CATEGORIES, JOB_LOCATIONS, type Job } from "@/data/jobs";
 import PremiumBanner from "@/components/PremiumBanner";
+import { useRecruiter } from "@/context/RecruiterContext";
+import { useMatchmaking, type MatchProfile, type MatchInterest } from "@/hooks/useMatchmaking";
 
 export default function JobsPage() {
   const [searchParams] = useSearchParams();
@@ -18,19 +19,21 @@ export default function JobsPage() {
   const [location, setLocation] = useState("all");
   const [workMode, setWorkMode] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
+  const [directory, setDirectory] = useState<"roles" | "companies">("roles");
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
-  const { addMatch, removeMatch, isMatched } = useMatches();
+  const { viewMode, allJobs } = useRecruiter();
+  const { profiles, loading: matchingLoading, jobOwners, sendInterest, interestFor } = useMatchmaking();
 
   useEffect(() => {
     const selectedId = searchParams.get("selected");
     if (selectedId) {
-      const job = JOBS.find(j => j.id === selectedId);
+      const job = allJobs.find(j => j.id === selectedId);
       if (job) setSelectedJob(job);
     }
-  }, [searchParams]);
+  }, [allJobs, searchParams]);
 
   const filtered = useMemo(() => {
-    return [...JOBS]
+    return [...allJobs]
       .filter(j => {
         if (search && !`${j.title} ${j.company} ${j.tags.join(" ")}`.toLowerCase().includes(search.toLowerCase())) return false;
         if (category !== "all" && j.category !== category) return false;
@@ -39,9 +42,16 @@ export default function JobsPage() {
         return true;
       })
       .sort((a, b) => new Date(b.postedDate).getTime() - new Date(a.postedDate).getTime());
-  }, [search, category, location, workMode]);
+  }, [allJobs, search, category, location, workMode]);
+
+  if (viewMode === "recruiter") {
+    return <TalentDirectory profiles={profiles} loading={matchingLoading} sendInterest={sendInterest} interestFor={interestFor} />;
+  }
 
   if (selectedJob) {
+    const ownerId = jobOwners[selectedJob.id];
+    const roleInterest = ownerId ? interestFor(ownerId, "role", selectedJob.id) : undefined;
+    const companyInterest = ownerId ? interestFor(ownerId, "company") : undefined;
     return (
       <div className="space-y-4">
         <Button variant="ghost" size="sm" onClick={() => setSelectedJob(null)}>
@@ -90,13 +100,30 @@ export default function JobsPage() {
             >
               <ExternalLink className="h-4 w-4 mr-2" /> Apply Now
             </Button>
-            <Button
-              variant="outline"
-              className={isMatched(selectedJob.id) ? "border-xp text-xp" : "border-primary/30"}
-              onClick={() => isMatched(selectedJob.id) ? removeMatch(selectedJob.id) : addMatch(selectedJob.id, { title: selectedJob.title, company: selectedJob.company })}
-            >
-              <Heart className={`h-4 w-4 ${isMatched(selectedJob.id) ? "fill-current" : ""}`} />
-            </Button>
+            {selectedJob.source === "recruiter" && ownerId && (
+              <Button
+                variant="outline"
+                aria-label={roleInterest ? `${roleInterest.status} interest in this role` : "Show interest in this role"}
+                className={roleInterest?.status === "accepted" ? "border-xp text-xp" : "border-primary/30"}
+                disabled={roleInterest?.status !== undefined}
+                onClick={() => void sendInterest(ownerId, "role", selectedJob.id)}
+              >
+                <Heart className={`h-4 w-4 ${roleInterest ? "fill-current" : ""}`} />
+                <span className="sr-only">{roleInterest?.status ?? "Like role"}</span>
+              </Button>
+            )}
+            {selectedJob.source === "recruiter" && ownerId && (
+              <Button
+                variant="outline"
+                aria-label={companyInterest ? `${companyInterest.status} interest in this company` : "Show interest in this company"}
+                className={companyInterest?.status === "accepted" ? "border-xp text-xp" : "border-accent/30"}
+                disabled={companyInterest?.status !== undefined}
+                onClick={() => void sendInterest(ownerId, "company")}
+              >
+                <Building2 className={`h-4 w-4 ${companyInterest ? "fill-current" : ""}`} />
+                <span className="sr-only">{companyInterest?.status ?? "Like company"}</span>
+              </Button>
+            )}
           </div>
 
           <PremiumBanner text="Get an AI-tailored cover letter for this role" buttonLabel="Unlock" />
@@ -107,6 +134,27 @@ export default function JobsPage() {
 
   return (
     <div className="space-y-4">
+      <div>
+        <h1 className="font-display text-2xl font-bold">Jobs</h1>
+        <p className="text-xs text-muted-foreground mt-1">
+          Browse opportunities from across the web and roles published by companies on Careers Zone.
+        </p>
+      </div>
+      <div className="flex gap-2">
+        <Button size="sm" variant={directory === "roles" ? "default" : "outline"} onClick={() => setDirectory("roles")}>Roles</Button>
+        <Button size="sm" variant={directory === "companies" ? "default" : "outline"} onClick={() => setDirectory("companies")}>Companies</Button>
+      </div>
+      {directory === "companies" ? (
+        <CompanyDirectory
+          profiles={profiles}
+          loading={matchingLoading}
+          search={search}
+          onSearch={setSearch}
+          sendInterest={sendInterest}
+          interestFor={interestFor}
+        />
+      ) : (
+        <>
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -181,6 +229,136 @@ export default function JobsPage() {
           </motion.div>
         ))}
       </div>
+        </>
+      )}
     </div>
+  );
+}
+
+function TalentDirectory({
+  profiles,
+  loading,
+  sendInterest,
+  interestFor,
+}: {
+  profiles: MatchProfile[];
+  loading: boolean;
+  sendInterest: (receiverId: string, interestType: MatchInterest["interest_type"], jobId?: string) => Promise<boolean>;
+  interestFor: (receiverId: string, interestType: MatchInterest["interest_type"], jobId?: string) => MatchInterest | undefined;
+}) {
+  const [search, setSearch] = useState("");
+  const talents = profiles.filter((profile) => profile.account_type === "talent").filter((profile) =>
+    `${profile.full_name} ${profile.headline} ${profile.location} ${Array.isArray(profile.profile.skills) ? profile.profile.skills.join(" ") : ""}`
+      .toLowerCase().includes(search.toLowerCase()),
+  );
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h1 className="font-display text-2xl font-bold">Talent</h1>
+        <p className="mt-1 text-xs text-muted-foreground">Browse talent profiles and express interest. They can accept or decline your request.</p>
+      </div>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search talents, roles, skills..." className="bg-card pl-9" />
+      </div>
+      {loading ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">Loading talent profiles…</p>
+      ) : talents.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          No talent profiles found yet. Talents appear here after they create an account and complete their profile.
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {talents.map((talent) => {
+            const interest = interestFor(talent.user_id, "talent");
+            const skills = Array.isArray(talent.profile.skills) ? talent.profile.skills.filter((skill): skill is string => typeof skill === "string") : [];
+            return (
+              <article key={talent.user_id} className="space-y-3 rounded-xl border border-border bg-card p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="font-display text-base font-bold">{talent.full_name || "Talent profile"}</h2>
+                    <p className="text-xs text-muted-foreground">{talent.headline || "Game industry professional"}</p>
+                    {talent.location && <p className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground"><MapPin className="h-3 w-3" />{talent.location}</p>}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant={interest ? "secondary" : "outline"}
+                    className={interest?.status === "accepted" ? "shrink-0 border-xp text-xp" : "shrink-0 border-primary/30"}
+                    disabled={interest?.status !== undefined}
+                    onClick={() => void sendInterest(talent.user_id, "talent")}
+                  >
+                    <Heart className={`mr-1 h-3.5 w-3.5 ${interest ? "fill-current" : ""}`} />
+                    {interest ? interest.status === "accepted" ? "Matched" : interest.status === "declined" ? "Declined" : "Requested" : "Show interest"}
+                  </Button>
+                </div>
+                {skills.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {skills.slice(0, 8).map((skill) => <Badge key={skill} variant="secondary" className="text-[10px]">{skill}</Badge>)}
+                  </div>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CompanyDirectory({
+  profiles,
+  loading,
+  search,
+  onSearch,
+  sendInterest,
+  interestFor,
+}: {
+  profiles: MatchProfile[];
+  loading: boolean;
+  search: string;
+  onSearch: (value: string) => void;
+  sendInterest: (receiverId: string, interestType: MatchInterest["interest_type"], jobId?: string) => Promise<boolean>;
+  interestFor: (receiverId: string, interestType: MatchInterest["interest_type"], jobId?: string) => MatchInterest | undefined;
+}) {
+  const companies = profiles.filter((profile) => profile.account_type === "recruiter" && profile.company_name.trim())
+    .filter((profile) => `${profile.company_name} ${profile.location} ${String(profile.company.location ?? "")} ${String(profile.company.tagline ?? "")}`
+      .toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <section className="space-y-3">
+      <div>
+        <h2 className="font-display text-lg font-bold">Studios</h2>
+        <p className="text-xs text-muted-foreground">Show a studio you’re interested even if none of its current roles fit.</p>
+      </div>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input value={search} onChange={(event) => onSearch(event.target.value)} placeholder="Search companies..." className="bg-card pl-9" />
+      </div>
+      {loading ? <p className="py-8 text-center text-sm text-muted-foreground">Loading companies…</p> : companies.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No company profiles found yet.</p>
+      ) : companies.map((company) => {
+        const interest = interestFor(company.user_id, "company");
+        return (
+          <article key={company.user_id} className="flex items-start justify-between gap-3 rounded-xl border border-border bg-card p-4">
+            <div>
+              <h3 className="font-display text-base font-bold">{company.company_name}</h3>
+              <p className="text-xs text-muted-foreground">{String(company.company.tagline ?? company.company.location ?? company.location ?? "")}</p>
+              {typeof company.company.about === "string" && <p className="mt-2 line-clamp-3 text-xs text-muted-foreground">{company.company.about}</p>}
+            </div>
+            <Button
+              size="sm"
+              variant={interest ? "secondary" : "outline"}
+              className="shrink-0"
+              disabled={interest?.status !== undefined}
+              onClick={() => void sendInterest(company.user_id, "company")}
+            >
+              <Heart className={`mr-1 h-3.5 w-3.5 ${interest ? "fill-current" : ""}`} />
+              {interest ? interest.status === "accepted" ? "Matched" : interest.status === "declined" ? "Declined" : "Requested" : "Like studio"}
+            </Button>
+          </article>
+        );
+      })}
+    </section>
   );
 }

@@ -13,14 +13,28 @@ import PublishRolePage from "@/pages/PublishRolePage";
 import AICoachPage from "@/pages/AICoachPage";
 import EventsPage from "@/pages/EventsPage";
 import MessagesPage from "@/pages/MessagesPage";
+import AuthPage from "@/pages/AuthPage";
 import NotFound from "@/pages/NotFound";
 import { RecruiterProvider, useRecruiter } from "@/context/RecruiterContext";
+import { AuthProvider } from "@/context/AuthContext";
+import RequireAuth from "@/components/RequireAuth";
 
 const queryClient = new QueryClient();
 
 function ProfileRoute() {
   const { viewMode } = useRecruiter();
-  return viewMode === "recruiter" ? <CompanyProfilePage /> : <ProfilePage />;
+  return (
+    <RequireAuth>
+      {viewMode === "recruiter" ? <CompanyProfilePage /> : <ProfilePage />}
+    </RequireAuth>
+  );
+}
+
+function JobsRoute() {
+  const { viewMode } = useRecruiter();
+  return viewMode === "recruiter"
+    ? <RequireAuth><JobsPage /></RequireAuth>
+    : <JobsPage />;
 }
 
 const App = () => (
@@ -28,23 +42,26 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <RecruiterProvider>
-        <BrowserRouter>
-          <Layout>
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/match" element={<MatchPage />} />
-              <Route path="/jobs" element={<JobsPage />} />
-              <Route path="/events" element={<EventsPage />} />
-              <Route path="/messages" element={<MessagesPage />} />
-              <Route path="/profile" element={<ProfileRoute />} />
-              <Route path="/recruiter/publish" element={<PublishRolePage />} />
-              <Route path="/ai-coach" element={<AICoachPage />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Layout>
-        </BrowserRouter>
-      </RecruiterProvider>
+      <AuthProvider>
+        <RecruiterProvider>
+          <BrowserRouter>
+            <Layout>
+              <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/auth" element={<AuthPage />} />
+                <Route path="/match" element={<RequireAuth><MatchPage /></RequireAuth>} />
+                <Route path="/jobs" element={<JobsRoute />} />
+                <Route path="/events" element={<EventsPage />} />
+                <Route path="/messages" element={<RequireAuth><MessagesPage /></RequireAuth>} />
+                <Route path="/profile" element={<ProfileRoute />} />
+                <Route path="/recruiter/publish" element={<RequireAuth><PublishRolePage /></RequireAuth>} />
+                <Route path="/ai-coach" element={<AICoachPage />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Layout>
+          </BrowserRouter>
+        </RecruiterProvider>
+      </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

@@ -1,44 +1,50 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Building2, FilePlus2, Globe, MapPin, Pencil, Trash2, Users, Briefcase, Link2, FileText, Bell, Star, Heart, Sparkles } from "lucide-react";
+import { Building2, FilePlus2, Globe, MapPin, Pencil, Trash2, Users, Briefcase, Link2, FileText, Bell, Heart, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import JobCard from "@/components/JobCard";
 import { useRecruiter } from "@/context/RecruiterContext";
-import { useMatches } from "@/hooks/useMatches";
-
-const candidateLeads = [
-  { name: "Ava Chen", role: "Game Designer", location: "Berlin" },
-  { name: "Mateo Silva", role: "Frontend Programmer", location: "Remote" },
-  { name: "Naomi Park", role: "3D Artist", location: "Stockholm" },
-];
+import { useMatchmaking } from "@/hooks/useMatchmaking";
 
 export default function RecruiterHome() {
   const navigate = useNavigate();
   const { company, postedJobs, allJobs, removeJob, restoreJob } = useRecruiter();
-  const { notifications, recruiterInterest, addRecruiterInterest, isRecruiterInterested } = useMatches();
+  const { user, profiles, interests } = useMatchmaking();
   const hasCompany = company.name.trim() !== "";
   const initials = company.name ? company.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) : "?";
-  const sampleJob = postedJobs[0] ?? allJobs[0];
+  const incomingInterests = interests.filter((interest) =>
+    interest.receiver_id === user?.id && interest.status === "pending" &&
+    (interest.interest_type === "role" || interest.interest_type === "company"),
+  );
+  const studioInterest = incomingInterests.filter((interest) => interest.interest_type === "company");
 
   const roleSignals = [...postedJobs]
     .map((job) => ({
       job,
-      newInterest: notifications.filter((notification) => notification.jobId === job.id).length,
-      studioInterest: recruiterInterest.filter((item) => item.jobId === job.id).length,
+      newInterest: incomingInterests.filter((interest) => interest.interest_type === "role" && interest.job_id === job.id).length,
     }))
-    .sort((a, b) => (b.newInterest + b.studioInterest) - (a.newInterest + a.studioInterest));
+    .sort((a, b) => b.newInterest - a.newInterest);
 
-  const studioInterest = recruiterInterest.filter((item) => item.jobId === "general" || !postedJobs.some((job) => job.id === item.jobId));
-
-  const handleRemove = (id: string) => {
-    const removed = removeJob(id);
-    if (!removed) return;
-    toast("Role unpublished", {
-      description: removed.title,
-      action: { label: "Undo", onClick: () => restoreJob(removed) },
-    });
+  const handleRemove = async (id: string) => {
+    try {
+      const removed = await removeJob(id);
+      if (!removed) return;
+      toast("Role unpublished", {
+        description: removed.title,
+        action: {
+          label: "Undo",
+          onClick: () => {
+            void restoreJob(removed).catch((error: unknown) => {
+              toast.error(error instanceof Error ? error.message : "Couldn't restore this role.");
+            });
+          },
+        },
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't unpublish this role.");
+    }
   };
 
   return (
@@ -100,8 +106,8 @@ export default function RecruiterHome() {
       <div className="grid grid-cols-2 gap-3">
         {[
           { icon: FilePlus2, label: "Live roles", value: postedJobs.length, color: "text-primary" },
-          { icon: Bell, label: "New interest", value: notifications.length, color: "text-accent" },
-          { icon: Heart, label: "Studio likes", value: recruiterInterest.length, color: "text-xp" },
+          { icon: Bell, label: "New interest", value: incomingInterests.length, color: "text-accent" },
+          { icon: Heart, label: "Studio likes", value: studioInterest.length, color: "text-xp" },
           { icon: Briefcase, label: "Open roles", value: allJobs.length, color: "text-primary" },
         ].map((stat, i) => (
           <motion.div
@@ -148,7 +154,7 @@ export default function RecruiterHome() {
           </div>
         ) : (
           <div className="space-y-2">
-            {roleSignals.map(({ job, newInterest, studioInterest: interestForRole }) => (
+            {roleSignals.map(({ job, newInterest }) => (
               <div key={job.id} className="rounded-xl border border-border bg-card p-3">
                 <div className="flex items-center justify-between gap-2">
                   <div>
@@ -161,11 +167,6 @@ export default function RecruiterHome() {
                         {newInterest} new
                       </span>
                     )}
-                    {interestForRole > 0 && (
-                      <span className="rounded-full border border-xp/30 bg-xp/10 px-2 py-1 font-bold text-xp">
-                        {interestForRole} studio
-                      </span>
-                    )}
                   </div>
                 </div>
               </div>
@@ -174,60 +175,26 @@ export default function RecruiterHome() {
         )}
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2">
-        {notifications.length > 0 && (
-          <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
+      {(incomingInterests.length > 0 || studioInterest.length > 0) && (
+        <section className="space-y-2 rounded-xl border border-primary/20 bg-primary/5 p-3">
+          <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Bell className="h-4 w-4 text-primary" />
-              <p className="font-display text-xs font-bold text-primary">New candidate interest</p>
+              <Sparkles className="h-4 w-4 text-primary" />
+              <h3 className="font-display text-xs font-bold text-primary">Candidates to review</h3>
             </div>
-            {notifications.map((notification) => (
-              <div key={notification.id} className="rounded-lg border border-primary/10 bg-background/40 p-2.5">
-                <p className="text-sm font-medium"><span className="text-foreground">{notification.talentName}</span> is interested in <span className="text-primary">{notification.jobTitle}</span></p>
-                <p className="text-[10px] text-muted-foreground mt-1">{notification.company} • {new Date(notification.createdAt).toLocaleDateString()}</p>
-              </div>
-            ))}
+            <Button size="sm" variant="outline" onClick={() => navigate("/match")}>Review all</Button>
           </div>
-        )}
-
-        {studioInterest.length > 0 && (
-          <div className="rounded-xl border border-xp/20 bg-xp/5 p-3 space-y-2">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-xp" />
-              <p className="font-display text-xs font-bold text-xp">Interested in your studio</p>
-            </div>
-            {studioInterest.map((item) => (
-              <div key={item.id} className="rounded-lg border border-xp/10 bg-background/40 p-2.5">
-                <p className="text-sm font-medium"><span className="text-foreground">{item.candidateName}</span> likes the studio for <span className="text-xp">{item.jobTitle}</span></p>
-                <p className="text-[10px] text-muted-foreground mt-1">{item.company} • {new Date(item.createdAt).toLocaleDateString()}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="space-y-3">
-        <h3 className="font-display text-xs font-bold text-muted-foreground tracking-wider">CANDIDATES TO REACH OUT</h3>
-        <div className="space-y-2">
-          {candidateLeads.map((candidate) => (
-            <div key={candidate.name} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-3">
-              <div>
-                <p className="font-display text-sm font-bold">{candidate.name}</p>
-                <p className="text-[10px] text-muted-foreground">{candidate.role} • {candidate.location}</p>
-              </div>
-              <Button
-                size="sm"
-                variant={isRecruiterInterested(candidate.name) ? "secondary" : "outline"}
-                className={isRecruiterInterested(candidate.name) ? "border-xp text-xp" : "border-primary/30"}
-                onClick={() => addRecruiterInterest(candidate, sampleJob || { id: "demo-job", title: "Open game role", company: company.name || "Game studio" })}
-              >
-                <Star className={`h-3.5 w-3.5 mr-1 ${isRecruiterInterested(candidate.name) ? "fill-current" : ""}`} />
-                {isRecruiterInterested(candidate.name) ? "Interested" : "Show interest"}
-              </Button>
-            </div>
-          ))}
-        </div>
-      </div>
+          {incomingInterests.slice(0, 3).map((interest) => {
+            const talent = profiles.find((profile) => profile.user_id === interest.sender_id);
+            return (
+              <p key={interest.id} className="rounded-lg border border-primary/10 bg-background/40 p-2 text-sm">
+                <span className="font-medium">{talent?.full_name || "A talent"}</span>
+                {interest.interest_type === "company" ? " is interested in your studio." : " is interested in one of your roles."}
+              </p>
+            );
+          })}
+        </section>
+      )}
 
       <div className="space-y-3">
         <h3 className="font-display text-xs font-bold text-muted-foreground tracking-wider">YOUR ROLES</h3>

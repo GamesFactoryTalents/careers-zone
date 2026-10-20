@@ -14,7 +14,87 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      user_profiles: {
+        Row: {
+          user_id: string
+          account_type: string
+          full_name: string
+          headline: string
+          location: string
+          profile: Json
+          company_name: string
+          company: Json
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          account_type: string
+          full_name?: string
+          headline?: string
+          location?: string
+          profile?: Json
+          company_name?: string
+          company?: Json
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          account_type?: string
+          full_name?: string
+          headline?: string
+          location?: string
+          profile?: Json
+          company_name?: string
+          company?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      platform_jobs: {
+        Row: { id: string; recruiter_id: string; job: Json; posted_at: string }
+        Insert: { id: string; recruiter_id: string; job: Json; posted_at?: string }
+        Update: { id?: string; recruiter_id?: string; job?: Json; posted_at?: string }
+        Relationships: []
+      }
+      match_interests: {
+        Row: {
+          id: string
+          sender_id: string
+          receiver_id: string
+          job_id: string | null
+          interest_type: string
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          sender_id: string
+          receiver_id: string
+          job_id?: string | null
+          interest_type: string
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          sender_id?: string
+          receiver_id?: string
+          job_id?: string | null
+          interest_type?: string
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      match_messages: {
+        Row: { id: string; interest_id: string; sender_id: string; body: string; created_at: string }
+        Insert: { id?: string; interest_id: string; sender_id: string; body: string; created_at?: string }
+        Update: { id?: string; interest_id?: string; sender_id?: string; body?: string; created_at?: string }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

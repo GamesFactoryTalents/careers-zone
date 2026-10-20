@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Building2, Gamepad2 } from "lucide-react";
 import { useRecruiter } from "@/context/RecruiterContext";
+import { useAuth } from "@/hooks/useAuth";
 import type { ViewMode } from "@/types/company";
 
 const OPTIONS: { value: ViewMode; label: string; icon: typeof Gamepad2 }[] = [
@@ -9,7 +10,8 @@ const OPTIONS: { value: ViewMode; label: string; icon: typeof Gamepad2 }[] = [
 ];
 
 export default function ViewModeSwitch() {
-  const { viewMode, setViewMode } = useRecruiter();
+  const { viewMode, accountType, setViewMode } = useRecruiter();
+  const { user, demoAccountType } = useAuth();
 
   return (
     <div role="tablist" aria-label="Switch view" className="relative grid grid-cols-2 rounded-full border border-border bg-card p-1">
@@ -21,8 +23,9 @@ export default function ViewModeSwitch() {
             key={opt.value}
             role="tab"
             aria-selected={active}
+            disabled={!!(user || demoAccountType) && opt.value !== accountType}
             onClick={() => setViewMode(opt.value)}
-            className={`relative z-10 flex items-center justify-center gap-2 rounded-full py-2 text-xs font-display font-bold tracking-wide transition-colors ${
+            className={`relative z-10 flex items-center justify-center gap-2 rounded-full py-2 text-xs font-display font-bold tracking-wide transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
               active ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
             }`}
           >

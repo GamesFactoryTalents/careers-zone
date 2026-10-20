@@ -1,61 +1,94 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ArrowUpRight, CalendarDays, MessageSquare, Send, Sparkles } from "lucide-react";
+import { MessageSquare, Send } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { EVENTS } from "@/data/events";
-import { useEvents } from "@/hooks/useEvents";
+import { useMatchmaking } from "@/hooks/useMatchmaking";
+import { supabase } from "@/integrations/supabase/client";
+
+interface Message {
+  id: string;
+  interest_id: string;
+  sender_id: string;
+  body: string;
+  created_at: string;
+}
 
 export default function MessagesPage() {
-  const [searchParams] = useSearchParams();
-  const { conversations, sendMessage, openConversation } = useEvents();
-  const [selectedId, setSelectedId] = useState<string>(conversations[0]?.id ?? "");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { user, profiles, interests } = useMatchmaking();
+  const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
-
-  const requestedPerson = searchParams.get("person");
-  const requestedEvent = searchParams.get("event");
+  const [loading, setLoading] = useState(false);
+  const accepted = useMemo(() => interests.filter((item) =>
+    item.status === "accepted" && (item.sender_id === user?.id || item.receiver_id === user?.id),
+  ), [interests, user]);
+  const requestedId = searchParams.get("match");
+  const selected = requestedId
+    ? accepted.find((item) => item.id === requestedId)
+    : accepted[0];
+  const otherUserId = selected ? (selected.sender_id === user?.id ? selected.receiver_id : selected.sender_id) : "";
+  const participant = profiles.find((profile) => profile.user_id === otherUserId);
 
   useEffect(() => {
-    if (!requestedPerson) {
-      if (!selectedId && conversations[0]) {
-        setSelectedId(conversations[0].id);
+    if (!selected) {
+      setMessages([]);
+      return;
+    }
+    let active = true;
+    setLoading(true);
+    const loadMessages = async () => {
+      const { data, error } = await supabase.from("match_messages").select("*")
+        .eq("interest_id", selected.id).order("created_at", { ascending: true });
+      if (!active) return;
+      if (error) {
+        toast.error(`Couldn't load messages: ${error.message}`);
+      } else {
+        setMessages(data ?? []);
       }
-      return;
-    }
+      setLoading(false);
+    };
+    void loadMessages();
+    const channel = supabase.channel(`messages-${selected.id}`)
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "match_messages",
+        filter: `interest_id=eq.${selected.id}`,
+      }, () => { void loadMessages(); })
+      .subscribe();
+    return () => {
+      active = false;
+      void supabase.removeChannel(channel);
+    };
+  }, [selected]);
 
-    const match = conversations.find((conversation) => {
-      if (conversation.participantName !== requestedPerson) return false;
-      if (!requestedEvent) return true;
-      return conversation.eventId === requestedEvent;
+  useEffect(() => {
+    if (!requestedId && selected) setSearchParams({ match: selected.id }, { replace: true });
+  }, [requestedId, selected, setSearchParams]);
+
+  const send = useCallback(async () => {
+    const body = draft.trim();
+    if (!selected || !user || !body) return;
+    const { error } = await supabase.from("match_messages").insert({
+      interest_id: selected.id,
+      sender_id: user.id,
+      body,
     });
-
-    if (match) {
-      setSelectedId(match.id);
+    if (error) {
+      toast.error(`Couldn't send message: ${error.message}`);
       return;
     }
+    setDraft("");
+  }, [draft, selected, user]);
 
-    const event = EVENTS.find((item) => item.id === requestedEvent);
-    const participant = event
-      ? [...event.recruiters, ...event.talents].find((person) => person.name === requestedPerson)
-      : undefined;
-
-    if (!participant) return;
-
-    const key = `${participant.name}-${event?.id || "general"}`;
-    openConversation(participant, event);
-    setSelectedId(key);
-  }, [conversations, openConversation, requestedEvent, requestedPerson, selectedId]);
-
-  const selectedConversation = useMemo(
-    () => conversations.find(item => item.id === selectedId) ?? conversations[0],
-    [conversations, selectedId],
-  );
-
-  if (!selectedConversation) {
+  if (accepted.length === 0) {
     return (
-      <div className="space-y-4 py-8 text-center">
-        <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground/30" />
-        <p className="text-sm text-muted-foreground">No conversations yet. Start a chat from the event matches.</p>
+      <div className="space-y-3 py-10 text-center">
+        <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground/30" />
+        <h1 className="font-display text-xl font-bold">Messages unlock after a match</h1>
+        <p className="text-sm text-muted-foreground">When both sides accept an interest, the connection will appear here.</p>
       </div>
     );
   }
@@ -63,86 +96,48 @@ export default function MessagesPage() {
   return (
     <div className="space-y-4 pb-24">
       <div className="space-y-1">
-        <p className="font-display text-xs font-bold text-muted-foreground tracking-wider">MESSAGES</p>
-        <h1 className="font-display text-2xl font-bold">Your conversations</h1>
+        <p className="font-display text-xs font-bold tracking-wider text-muted-foreground">MESSAGES</p>
+        <h1 className="font-display text-2xl font-bold">Your matches</h1>
       </div>
-
-      <div className="rounded-2xl border border-border bg-card p-3 space-y-2">
-        {conversations.map((conversation) => (
-          <button
-            key={conversation.id}
-            onClick={() => setSelectedId(conversation.id)}
-            className={`w-full rounded-xl border p-3 text-left ${selectedConversation.id === conversation.id ? "border-primary/40 bg-primary/5" : "border-border bg-background"}`}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <p className="font-display text-sm font-bold">{conversation.participantName}</p>
-                <p className="text-[10px] text-muted-foreground">{conversation.participantRole}</p>
-              </div>
-              <span className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[9px] font-bold uppercase text-accent">
-                {conversation.mode === "onsite" ? "Meet onsite" : "Online chat"}
-              </span>
-            </div>
-          </button>
-        ))}
+      <div className="space-y-2 rounded-2xl border border-border bg-card p-3">
+        {accepted.map((interest) => {
+          const id = interest.sender_id === user?.id ? interest.receiver_id : interest.sender_id;
+          const profile = profiles.find((item) => item.user_id === id);
+          return (
+            <button
+              key={interest.id}
+              onClick={() => setSearchParams({ match: interest.id })}
+              className={`w-full rounded-xl border p-3 text-left ${selected?.id === interest.id ? "border-primary/40 bg-primary/5" : "border-border bg-background"}`}
+            >
+              <p className="font-display text-sm font-bold">{profile?.full_name || profile?.company_name || "Matched connection"}</p>
+              <p className="text-[10px] text-muted-foreground">{profile?.headline || "Mutual match"}</p>
+            </button>
+          );
+        })}
       </div>
-
-      <div className="rounded-2xl border border-border bg-card p-4 space-y-4">
-        <div className="flex items-center justify-between gap-3">
+      {!selected && <p className="rounded-xl border border-dashed border-border p-4 text-center text-sm text-muted-foreground">Select one of your accepted matches to open its conversation.</p>}
+      {selected && (
+        <section className="space-y-4 rounded-2xl border border-border bg-card p-4">
           <div>
-            <p className="font-display text-sm font-bold">{selectedConversation.participantName}</p>
-            <p className="text-[10px] text-muted-foreground">{selectedConversation.participantRole}</p>
+            <p className="font-display text-sm font-bold">{participant?.full_name || participant?.company_name || "Matched connection"}</p>
+            <p className="text-[10px] text-muted-foreground">{participant?.headline || "You both accepted this connection"}</p>
           </div>
-          <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-[9px] font-bold uppercase text-primary">
-            {selectedConversation.eventTitle || "Match"}
-          </span>
-        </div>
-
-        {(requestedPerson || requestedEvent) && (
-          <div className="rounded-xl border border-xp/30 bg-xp/10 p-3 text-xs text-muted-foreground">
-            <Sparkles className="inline h-3.5 w-3.5 mr-1 text-xp" />
-            Suggested connection: {requestedPerson || selectedConversation.participantName} • {requestedEvent ? "same event" : "mutual interest"}
-          </div>
-        )}
-
-        <div className="space-y-2">
-          {selectedConversation.messages.map((message) => (
-            <div key={message.id} className={`flex ${message.sender === "me" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${message.sender === "me" ? "bg-primary text-primary-foreground" : "bg-background border border-border text-foreground"}`}>
-                {message.text}
+          <div className="max-h-[45vh] min-h-28 space-y-2 overflow-y-auto">
+            {loading ? <p className="text-center text-xs text-muted-foreground">Loading messages…</p> : messages.map((message) => (
+              <div key={message.id} className={`flex ${message.sender_id === user?.id ? "justify-end" : "justify-start"}`}>
+                <p className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${message.sender_id === user?.id ? "bg-primary text-primary-foreground" : "border border-border bg-background"}`}>
+                  {message.body}
+                </p>
               </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex gap-2">
-          <Input
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
-            placeholder="Write a message…"
-            className="bg-background"
-          />
-          <Button
-            size="icon"
-            onClick={() => {
-              if (!draft.trim()) return;
-              sendMessage(selectedConversation.id, draft);
-              setDraft("");
-            }}
-          >
-            <Send className="h-4 w-4" />
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <Button variant="outline" size="sm" className="border-primary/30">
-            <CalendarDays className="h-3.5 w-3.5 mr-1" /> Suggest meeting
-          </Button>
-          <Button variant="outline" size="sm" className="border-primary/30">
-            <ArrowUpRight className="h-3.5 w-3.5 mr-1" /> Arrange call
-          </Button>
-        </div>
-      </div>
+            ))}
+            {!loading && messages.length === 0 && <p className="py-4 text-center text-xs text-muted-foreground">You matched. Start the conversation.</p>}
+          </div>
+          <form onSubmit={(event) => { event.preventDefault(); void send(); }} className="flex gap-2">
+            <Input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Write a message…" maxLength={4000} className="bg-background" />
+            <Button type="submit" size="icon" disabled={!draft.trim()} aria-label="Send message"><Send className="h-4 w-4" /></Button>
+          </form>
+        </section>
+      )}
     </div>
   );
 }

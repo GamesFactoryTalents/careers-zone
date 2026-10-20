@@ -1,15 +1,13 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { CalendarDays, CheckCircle2, MapPin, MessageSquare, Sparkles, Users } from "lucide-react";
+import { CalendarDays, CheckCircle2, MapPin, Sparkles, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useRecruiter } from "@/context/RecruiterContext";
 import { useEvents } from "@/hooks/useEvents";
 
 export default function EventsPage() {
-  const navigate = useNavigate();
   const { viewMode } = useRecruiter();
-  const { events, attendance, toggleAttendance, openConversation, recommendedMatches } = useEvents();
+  const { events, attendance, toggleAttendance } = useEvents();
   const [selectedId, setSelectedId] = useState(events[0]?.id ?? "");
 
   const selectedEvent = useMemo(
@@ -68,9 +66,6 @@ export default function EventsPage() {
                 <Button size="sm" className="flex-1 gradient-primary glow-primary" onClick={() => { toggleAttendance(event.id); setSelectedId(event.id); }}>
                   {isAttending ? "Registered" : "Attend event"}
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => { setSelectedId(event.id); navigate("/messages"); }}>
-                  <MessageSquare className="h-3.5 w-3.5 mr-1" /> Chat
-                </Button>
               </div>
             </div>
           );
@@ -94,26 +89,8 @@ export default function EventsPage() {
                 <div>
                   <p className="font-display text-sm font-bold">{person.name}</p>
                   <p className="text-[10px] text-muted-foreground">{person.role} • {person.company || person.location}</p>
-                  {onsite && (
-                    <span className="mt-1 inline-flex rounded-full border border-xp/40 bg-xp/10 px-2 py-0.5 text-[9px] font-bold uppercase text-xp">
-                      Meet onsite
-                    </span>
-                  )}
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant={onsite ? "secondary" : "outline"}
-                    size="sm"
-                    className={onsite ? "border-xp text-xp" : "border-primary/30"}
-                    onClick={() => {
-                      openConversation(person, selectedEvent);
-                      navigate(`/messages?event=${selectedEvent.id}&person=${encodeURIComponent(person.name)}`);
-                    }}
-                  >
-                    <MessageSquare className="h-3.5 w-3.5 mr-1" />
-                    {onsite ? "Meet" : "Message"}
-                  </Button>
-                </div>
+                {onsite && <span className="text-[10px] font-medium text-xp">Meet onsite</span>}
               </div>
             );
           })}

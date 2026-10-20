@@ -10,12 +10,15 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRecruiter } from "@/context/RecruiterContext";
 import { STUDIO_SIZES } from "@/types/profile";
+import AccountSignOutButton from "@/components/AccountSignOutButton";
+import { useAuth } from "@/hooks/useAuth";
 
 const COMPANY_SIZES = STUDIO_SIZES.filter((s) => s !== "Any");
 
 export default function CompanyProfilePage() {
   const navigate = useNavigate();
   const { company, updateCompany } = useRecruiter();
+  const { demoAccountType } = useAuth();
   const [saved, setSaved] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const initials = company.name ? company.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) : "?";
@@ -36,6 +39,10 @@ export default function CompanyProfilePage() {
   };
 
   const handleSave = () => {
+    if (demoAccountType) {
+      toast.info("Demo changes aren't saved. Create an account to save your company profile.");
+      return;
+    }
     if (!company.name.trim()) {
       toast.error("Add your company name first");
       return;
@@ -50,9 +57,12 @@ export default function CompanyProfilePage() {
 
   return (
     <div className="space-y-6 pb-4">
-      <div>
-        <h1 className="font-display text-2xl font-bold">Company profile</h1>
-        <p className="text-xs text-muted-foreground mt-1">Talents see this on every role you publish.</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-bold">Company profile</h1>
+          <p className="text-xs text-muted-foreground mt-1">Talents see this on every role you publish.</p>
+        </div>
+        <AccountSignOutButton />
       </div>
 
       {/* Logo + name */}

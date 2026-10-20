@@ -25,21 +25,28 @@
 - **Pro Tip** — randomly rotated career tips for game industry job seekers
 - **Premium Banner** — upsell CTA for premium subscription
 
-### 2. Match Page (`/match`) — Tinder-style Job Swiping
+### 2. Match Page (`/match`) — Mutual platform matches
+- Talent can express interest only in roles published directly on Careers Zone; recruiter requests can be accepted or declined
+- Recruiters review incoming interest in each role or company and can match or decline
+- Messaging is available only after the recipient accepts
+- Match decisions are stored in Supabase and update live between accounts
+- Recruiter view shows incoming talent interest and accepted matches
 - **SwipeCard component** with drag gestures (Framer Motion `useMotionValue`):
   - Drag threshold: 100px triggers match/dismiss
   - Visual indicators: "MATCH" (green) and "NOPE" (red) labels appear during drag
   - Cards show category-specific Unsplash background images (mapped via `categoryVisuals.ts`)
   - Card stack shows 2 cards with parallax scaling (back card at 0.95 scale, 8px offset)
 - **Action buttons**: Skip (❌) and Match (❤️) with 16x16 rounded buttons
-- **Matches tab**: Toggle between Swipe and Matches views; shows matched `JobCard` list
-- **State**: `useMatches` hook persists matches/dismissed to `localStorage`
+- **Matches tab**: Lists accepted connections with a link to the gated conversation
+- Skipped platform roles are remembered per signed-in account in `localStorage`
 
 ### 3. Jobs Page (`/jobs`)
 - **Search** — full-text across title, company, tags
 - **Filters** — Category (17 categories), Location (8 locations), Work Mode (Remote/On-site/Hybrid)
 - **Job List** — animated `JobCard` components with staggered entry
 - **Job Detail View** — full description, requirements list, tags, "Apply Now" (external link), heart/match toggle
+- **Recruiter view** — the Jobs tab becomes a searchable talent directory with recruiter interest requests
+- Talent can browse a Companies feed and like a studio even when no current role matches
 - **20 real job listings** from Games Factory Talents covering: Backend Programmer, Game Designer, 3D Artist, Sound Designer, QA Lead, DevOps Engineer, Community Manager, etc.
 - **Locations**: Europe (Remote), Berlin, Helsinki, Stockholm, Copenhagen, Warsaw, Riyadh
 
@@ -54,7 +61,7 @@
 - **Cover Letter**: Dedicated text area
 - **Preferences**: Work mode, studio size (Startup to Large 200+), country, 19 languages, 12 game genres
 - **Favorite Games**: Optional personality section
-- **State**: `useProfile` hook persists everything to `localStorage` under key `levelup_profile`
+- **State**: `useProfile` keeps a local draft for signed-out browsing and syncs signed-in profiles to Supabase
 
 ### 5. AI Coach Page (`/ai-coach`)
 - **Two modes**: CV Analysis / Cover Letter Analysis
@@ -80,6 +87,15 @@
 ---
 
 ## 🧠 AI & Backend
+
+### Accounts, matching, and messaging
+- Email/password sign-up and sign-in use Supabase Auth; profiles are classified as talent or recruiter
+- Talent and recruiter demo access is available from the sign-in page; it is temporary, does not create an account/profile, and keeps sample match decisions in the browser only. The recruiter demo includes a sample company and published roles; the talent demo includes a sample profile.
+- Talent and company profiles, platform-published roles, interest decisions, and messages are stored in Supabase
+- Interests stay pending until the recipient accepts or declines; only accepted matches can access chat
+- Row-level security limits profile visibility, role publishing, interest decisions, and messages to the appropriate users
+- Realtime subscriptions update new interests, profile listings, published roles, and chat messages
+- Apply the schema migration with `supabase db push` after linking the Supabase project and configuring email/password auth
 
 ### Edge Function: `analyze-cv`
 - **Runtime**: Deno (Supabase Edge Functions), JWT verification disabled
@@ -166,21 +182,21 @@
 
 ## 🔧 Architecture Notes
 
-- **No authentication** — all data is localStorage-only
-- **No database tables** — Supabase schema is empty (no tables in `types.ts`)
-- **Static job data** — 20 jobs hardcoded in `src/data/jobs.ts`
-- **No server-side persistence** — profile, matches, dismissals all in localStorage
+- **Authentication** — Supabase Auth with email/password; authentication is required for profiles, Match, recruiter talent browsing, role publishing, and Messages
+- **Server-side persistence** — profiles, platform roles, interest decisions, and matched conversations use Supabase tables created by `supabase/migrations/20261020220000_matchmaking.sql`
+- **External job feed** — the initial 20 external listings remain in `src/data/jobs.ts`; recruiter-published platform roles are stored in Supabase
+- **Local state** — profile drafts for signed-out browsing and skipped-role state use browser storage
 - **Mobile-first layout** — `max-w-lg mx-auto`, fixed bottom nav with 5 tabs, `safe-bottom` for notch support
 
 ---
 
 ## 💡 Feature Improvement Suggestions
 
-### 1. **User Authentication + Cloud Persistence** *(Critical)*
-Everything is in localStorage — users lose all data on device switch or browser clear. Adding auth with database-backed profiles, matches, and CV analyses would make the app actually usable across devices and sessions.
+### 1. **External Job Feed API Integration** *(High Impact)*
+The initial external jobs are static. Connect a job API or supported recruiting feed and refresh listing dates/statuses as roles change.
 
-### 2. **Real Job Feed API Integration** *(High Impact)*
-20 static jobs will feel stale within days. Integrate a job scraping pipeline or API (e.g., connect to Zoho Recruit API, or build an admin panel to manage jobs via database).
+### 2. **Matching Relevance** *(High Impact)*
+Use profile data (role, skills, experience level, location, work mode) to score and rank platform roles, then show a match score on each SwipeCard.
 
 ### 3. **Smart Matching Algorithm** *(High Impact)*
 Currently swiping is random — jobs aren't sorted by relevance. Use profile data (role, skills, experience level, location, work mode) to score and rank jobs by match percentage. Show a "Match Score" on each SwipeCard.
@@ -194,8 +210,8 @@ Build an actual AI-powered cover letter generator that takes the user's profile 
 ### 6. **Push Notifications for New Job Matches** *(Engagement)*
 Implement job alerts via email when new jobs match profile criteria to drive retention.
 
-### 7. **Employer/Studio Side** *(Platform Play)*
-Adding an employer dashboard where studios can post jobs, browse candidate profiles, and see match scores would create a two-sided marketplace.
+### 7. **Push Notifications for Matches** *(Engagement)*
+Add email or device push notifications for incoming interest and newly accepted matches.
 
 ### 8. **Onboarding Flow** *(UX)*
 A guided 3-step onboarding (pick your role → add key skills → upload CV) would dramatically improve activation.
