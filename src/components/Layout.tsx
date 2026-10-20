@@ -1,8 +1,8 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Home, Gamepad2, Briefcase, User, Bot } from "lucide-react";
+import { Home, Gamepad2, Briefcase, User, Bot, Building2 } from "lucide-react";
+import { useRecruiter } from "@/context/RecruiterContext";
 
-
-const tabs = [
+const talentTabs = [
   { path: "/", label: "Home", icon: Home },
   { path: "/match", label: "Match", icon: Gamepad2 },
   { path: "/jobs", label: "Jobs", icon: Briefcase },
@@ -13,6 +13,11 @@ const tabs = [
 export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { viewMode } = useRecruiter();
+  const tabs =
+    viewMode === "recruiter"
+      ? talentTabs.map((t) => (t.path === "/profile" ? { ...t, label: "Company", icon: Building2 } : t))
+      : talentTabs;
   const isMatchPage = location.pathname === "/match";
 
   return (
