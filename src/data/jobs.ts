@@ -11,6 +11,9 @@ export interface Job {
   tags: string[];
   postedDate: string;
   applyUrl: string;
+  companyLogo?: string;
+  /** "recruiter" for roles published in the app by a recruiter. */
+  source?: "recruiter";
 }
 
 export const JOBS: Job[] = [

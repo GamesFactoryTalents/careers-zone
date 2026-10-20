@@ -7,7 +7,9 @@ import XPBar from "@/components/XPBar";
 import PremiumBanner from "@/components/PremiumBanner";
 import { useProfile } from "@/hooks/useProfile";
 import { useMatches } from "@/hooks/useMatches";
-import { JOBS } from "@/data/jobs";
+import { useRecruiter } from "@/context/RecruiterContext";
+import ViewModeSwitch from "@/components/ViewModeSwitch";
+import RecruiterHome from "@/components/recruiter/RecruiterHome";
 
 const tips = [
   "Always include a portfolio link - 73% of game studios check it before reading your CV.",
@@ -28,9 +30,20 @@ const floatingIcons = [
 ];
 
 export default function HomePage() {
+  const { viewMode } = useRecruiter();
+  return (
+    <div className="space-y-5">
+      <ViewModeSwitch />
+      {viewMode === "recruiter" ? <RecruiterHome /> : <TalentHome />}
+    </div>
+  );
+}
+
+function TalentHome() {
   const navigate = useNavigate();
   const { profileCompleteness } = useProfile();
   const { matches } = useMatches();
+  const { allJobs } = useRecruiter();
   const completion = profileCompleteness();
   const tip = tips[Math.floor(Math.random() * tips.length)];
 
@@ -93,7 +106,7 @@ export default function HomePage() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { icon: Briefcase, label: "Open Roles", value: JOBS.length, color: "text-primary", path: "/jobs" },
+          { icon: Briefcase, label: "Open Roles", value: allJobs.length, color: "text-primary", path: "/jobs" },
           { icon: Sparkles, label: "Matches", value: matches.length, color: "text-xp", path: "/match" },
           { icon: Zap, label: "Profile", value: `${completion}%`, color: "text-accent", path: "/profile" },
         ].map((stat, i) => (
