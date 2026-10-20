@@ -42,7 +42,7 @@ export default function HomePage() {
 function TalentHome() {
   const navigate = useNavigate();
   const { profileCompleteness } = useProfile();
-  const { matches } = useMatches();
+  const { matches, recruiterInterest } = useMatches();
   const { allJobs } = useRecruiter();
   const completion = profileCompleteness();
   const tip = tips[Math.floor(Math.random() * tips.length)];
@@ -124,6 +124,17 @@ function TalentHome() {
           </motion.div>
         ))}
       </div>
+
+      {recruiterInterest.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="rounded-xl border border-xp/30 bg-xp/10 p-4"
+        >
+          <h4 className="font-display text-xs font-bold text-xp mb-2">RECRUITER INTEREST</h4>
+          <p className="text-xs text-muted-foreground leading-relaxed">{recruiterInterest[0].company} is interested in your profile for <span className="font-medium text-foreground">{recruiterInterest[0].jobTitle}</span>.</p>
+        </motion.div>
+      )}
 
       {/* Quick Actions */}
       <div className="space-y-2">

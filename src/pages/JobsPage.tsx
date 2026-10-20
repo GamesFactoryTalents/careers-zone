@@ -30,13 +30,15 @@ export default function JobsPage() {
   }, [searchParams]);
 
   const filtered = useMemo(() => {
-    return JOBS.filter(j => {
-      if (search && !`${j.title} ${j.company} ${j.tags.join(" ")}`.toLowerCase().includes(search.toLowerCase())) return false;
-      if (category !== "all" && j.category !== category) return false;
-      if (location !== "all" && j.location !== location) return false;
-      if (workMode !== "all" && j.workMode !== workMode) return false;
-      return true;
-    });
+    return [...JOBS]
+      .filter(j => {
+        if (search && !`${j.title} ${j.company} ${j.tags.join(" ")}`.toLowerCase().includes(search.toLowerCase())) return false;
+        if (category !== "all" && j.category !== category) return false;
+        if (location !== "all" && j.location !== location) return false;
+        if (workMode !== "all" && j.workMode !== workMode) return false;
+        return true;
+      })
+      .sort((a, b) => new Date(b.postedDate).getTime() - new Date(a.postedDate).getTime());
   }, [search, category, location, workMode]);
 
   if (selectedJob) {
@@ -91,7 +93,7 @@ export default function JobsPage() {
             <Button
               variant="outline"
               className={isMatched(selectedJob.id) ? "border-xp text-xp" : "border-primary/30"}
-              onClick={() => isMatched(selectedJob.id) ? removeMatch(selectedJob.id) : addMatch(selectedJob.id)}
+              onClick={() => isMatched(selectedJob.id) ? removeMatch(selectedJob.id) : addMatch(selectedJob.id, { title: selectedJob.title, company: selectedJob.company })}
             >
               <Heart className={`h-4 w-4 ${isMatched(selectedJob.id) ? "fill-current" : ""}`} />
             </Button>

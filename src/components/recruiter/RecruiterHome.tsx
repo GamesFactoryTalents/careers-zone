@@ -1,17 +1,36 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Building2, FilePlus2, Globe, MapPin, Pencil, Trash2, Users, Briefcase, Link2, FileText } from "lucide-react";
+import { Building2, FilePlus2, Globe, MapPin, Pencil, Trash2, Users, Briefcase, Link2, FileText, Bell, Star, Heart, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import JobCard from "@/components/JobCard";
 import { useRecruiter } from "@/context/RecruiterContext";
+import { useMatches } from "@/hooks/useMatches";
+
+const candidateLeads = [
+  { name: "Ava Chen", role: "Game Designer", location: "Berlin" },
+  { name: "Mateo Silva", role: "Frontend Programmer", location: "Remote" },
+  { name: "Naomi Park", role: "3D Artist", location: "Stockholm" },
+];
 
 export default function RecruiterHome() {
   const navigate = useNavigate();
   const { company, postedJobs, allJobs, removeJob, restoreJob } = useRecruiter();
+  const { notifications, recruiterInterest, addRecruiterInterest, isRecruiterInterested } = useMatches();
   const hasCompany = company.name.trim() !== "";
   const initials = company.name ? company.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) : "?";
+  const sampleJob = postedJobs[0] ?? allJobs[0];
+
+  const roleSignals = [...postedJobs]
+    .map((job) => ({
+      job,
+      newInterest: notifications.filter((notification) => notification.jobId === job.id).length,
+      studioInterest: recruiterInterest.filter((item) => item.jobId === job.id).length,
+    }))
+    .sort((a, b) => (b.newInterest + b.studioInterest) - (a.newInterest + a.studioInterest));
+
+  const studioInterest = recruiterInterest.filter((item) => item.jobId === "general" || !postedJobs.some((job) => job.id === item.jobId));
 
   const handleRemove = (id: string) => {
     const removed = removeJob(id);
@@ -24,7 +43,6 @@ export default function RecruiterHome() {
 
   return (
     <div className="space-y-6">
-      {/* Company card */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
@@ -79,11 +97,12 @@ export default function RecruiterHome() {
         )}
       </motion.div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 gap-3">
         {[
-          { icon: FilePlus2, label: "Your live roles", value: postedJobs.length, color: "text-primary" },
-          { icon: Briefcase, label: "All open roles", value: allJobs.length, color: "text-accent" },
+          { icon: FilePlus2, label: "Live roles", value: postedJobs.length, color: "text-primary" },
+          { icon: Bell, label: "New interest", value: notifications.length, color: "text-accent" },
+          { icon: Heart, label: "Studio likes", value: recruiterInterest.length, color: "text-xp" },
+          { icon: Briefcase, label: "Open roles", value: allJobs.length, color: "text-primary" },
         ].map((stat, i) => (
           <motion.div
             key={stat.label}
@@ -99,7 +118,6 @@ export default function RecruiterHome() {
         ))}
       </div>
 
-      {/* Publish CTA */}
       <motion.button
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -119,7 +137,98 @@ export default function RecruiterHome() {
         </div>
       </motion.button>
 
-      {/* Your roles */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-display text-xs font-bold text-muted-foreground tracking-wider">ROLE FOCUS</h3>
+          <span className="text-[10px] text-muted-foreground">Sorted by activity</span>
+        </div>
+        {roleSignals.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground text-center">
+            No published roles yet. Publish a role to start reviewing interest.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {roleSignals.map(({ job, newInterest, studioInterest: interestForRole }) => (
+              <div key={job.id} className="rounded-xl border border-border bg-card p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="font-display text-sm font-bold">{job.title}</p>
+                    <p className="text-[10px] text-muted-foreground">{job.location} • {job.workMode}</p>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                    {newInterest > 0 && (
+                      <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-1 font-bold text-primary">
+                        {newInterest} new
+                      </span>
+                    )}
+                    {interestForRole > 0 && (
+                      <span className="rounded-full border border-xp/30 bg-xp/10 px-2 py-1 font-bold text-xp">
+                        {interestForRole} studio
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        {notifications.length > 0 && (
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <Bell className="h-4 w-4 text-primary" />
+              <p className="font-display text-xs font-bold text-primary">New candidate interest</p>
+            </div>
+            {notifications.map((notification) => (
+              <div key={notification.id} className="rounded-lg border border-primary/10 bg-background/40 p-2.5">
+                <p className="text-sm font-medium"><span className="text-foreground">{notification.talentName}</span> is interested in <span className="text-primary">{notification.jobTitle}</span></p>
+                <p className="text-[10px] text-muted-foreground mt-1">{notification.company} • {new Date(notification.createdAt).toLocaleDateString()}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {studioInterest.length > 0 && (
+          <div className="rounded-xl border border-xp/20 bg-xp/5 p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-xp" />
+              <p className="font-display text-xs font-bold text-xp">Interested in your studio</p>
+            </div>
+            {studioInterest.map((item) => (
+              <div key={item.id} className="rounded-lg border border-xp/10 bg-background/40 p-2.5">
+                <p className="text-sm font-medium"><span className="text-foreground">{item.candidateName}</span> likes the studio for <span className="text-xp">{item.jobTitle}</span></p>
+                <p className="text-[10px] text-muted-foreground mt-1">{item.company} • {new Date(item.createdAt).toLocaleDateString()}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-3">
+        <h3 className="font-display text-xs font-bold text-muted-foreground tracking-wider">CANDIDATES TO REACH OUT</h3>
+        <div className="space-y-2">
+          {candidateLeads.map((candidate) => (
+            <div key={candidate.name} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-3">
+              <div>
+                <p className="font-display text-sm font-bold">{candidate.name}</p>
+                <p className="text-[10px] text-muted-foreground">{candidate.role} • {candidate.location}</p>
+              </div>
+              <Button
+                size="sm"
+                variant={isRecruiterInterested(candidate.name) ? "secondary" : "outline"}
+                className={isRecruiterInterested(candidate.name) ? "border-xp text-xp" : "border-primary/30"}
+                onClick={() => addRecruiterInterest(candidate, sampleJob || { id: "demo-job", title: "Open game role", company: company.name || "Game studio" })}
+              >
+                <Star className={`h-3.5 w-3.5 mr-1 ${isRecruiterInterested(candidate.name) ? "fill-current" : ""}`} />
+                {isRecruiterInterested(candidate.name) ? "Interested" : "Show interest"}
+              </Button>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="space-y-3">
         <h3 className="font-display text-xs font-bold text-muted-foreground tracking-wider">YOUR ROLES</h3>
         {postedJobs.length === 0 ? (

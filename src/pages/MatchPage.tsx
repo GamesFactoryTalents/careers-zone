@@ -12,7 +12,7 @@ import PremiumBanner from "@/components/PremiumBanner";
 
 export default function MatchPage() {
   const navigate = useNavigate();
-  const { matches, dismissed, addMatch, dismissJob, isMatched, isDismissed, resetAll } = useMatches();
+  const { matches, dismissed, addMatch, dismissJob, isMatched, isDismissed, resetAll, recruiterInterest } = useMatches();
   const [showMatches, setShowMatches] = useState(false);
 
   const availableJobs = useMemo(
@@ -47,6 +47,12 @@ export default function MatchPage() {
 
   return (
     <div className="flex flex-col h-full">
+      {recruiterInterest.length > 0 && (
+        <div className="mb-3 rounded-xl border border-xp/30 bg-xp/10 p-3">
+          <p className="font-display text-[10px] font-bold uppercase tracking-wider text-xp">Recruiter interest</p>
+          <p className="mt-1 text-sm text-foreground">{recruiterInterest[0].company} is interested in your profile for <span className="font-medium text-primary">{recruiterInterest[0].jobTitle}</span>.</p>
+        </div>
+      )}
       {/* Toggle */}
       <div className="flex items-center gap-2 shrink-0 mb-3">
         <button

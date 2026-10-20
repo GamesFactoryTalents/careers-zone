@@ -11,6 +11,8 @@ import ProfilePage from "@/pages/ProfilePage";
 import CompanyProfilePage from "@/pages/CompanyProfilePage";
 import PublishRolePage from "@/pages/PublishRolePage";
 import AICoachPage from "@/pages/AICoachPage";
+import EventsPage from "@/pages/EventsPage";
+import MessagesPage from "@/pages/MessagesPage";
 import NotFound from "@/pages/NotFound";
 import { RecruiterProvider, useRecruiter } from "@/context/RecruiterContext";
 
@@ -33,6 +35,8 @@ const App = () => (
               <Route path="/" element={<HomePage />} />
               <Route path="/match" element={<MatchPage />} />
               <Route path="/jobs" element={<JobsPage />} />
+              <Route path="/events" element={<EventsPage />} />
+              <Route path="/messages" element={<MessagesPage />} />
               <Route path="/profile" element={<ProfileRoute />} />
               <Route path="/recruiter/publish" element={<PublishRolePage />} />
               <Route path="/ai-coach" element={<AICoachPage />} />
