@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Filter, X, ExternalLink, Heart, Building2, MapPin, Handshake, ArrowLeft } from "lucide-react";
+import { Search, Filter, X, ExternalLink, Heart, Building2, MapPin, Handshake, ArrowLeft, Github, Linkedin, Globe, Video, Gamepad2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -296,6 +296,73 @@ function TalentDirectory({
   const getSkills = (profile: MatchProfile) =>
     Array.isArray(profile.profile.skills) ? profile.profile.skills.filter((skill): skill is string => typeof skill === "string") : [];
 
+  const profileLinks = (profile: MatchProfile) => [
+    { key: "portfolioUrl", fallbackLabel: "Portfolio" },
+    { key: "showreelUrl", fallbackLabel: "Showreel" },
+    { key: "linkedinUrl", fallbackLabel: "LinkedIn" },
+    { key: "githubUrl", fallbackLabel: "GitHub" },
+  ].flatMap(({ key, fallbackLabel }) => {
+    const value = getString(profile, key).trim();
+    if (!value) return [];
+
+    let url: URL;
+    try {
+      url = new URL(/^[a-z][a-z\d+.-]*:/i.test(value) ? value : `https://${value}`);
+    } catch {
+      return [];
+    }
+    if (url.protocol !== "http:" && url.protocol !== "https:") return [];
+
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    if (host === "linkedin.com" || host.endsWith(".linkedin.com")) {
+      return [{ key, label: "LinkedIn", href: url.href, icon: <Linkedin className="h-4 w-4" /> }];
+    }
+    if (host === "github.com" || host.endsWith(".github.com")) {
+      return [{ key, label: "GitHub", href: url.href, icon: <Github className="h-4 w-4" /> }];
+    }
+    if (host === "artstation.com" || host.endsWith(".artstation.com")) {
+      return [{ key, label: "ArtStation", href: url.href, icon: <span aria-hidden="true" className="text-[10px] font-black leading-none">AS</span> }];
+    }
+    if (host === "behance.net" || host.endsWith(".behance.net")) {
+      return [{ key, label: "Behance", href: url.href, icon: <span aria-hidden="true" className="text-[10px] font-black leading-none">Bē</span> }];
+    }
+    if (host === "itch.io" || host.endsWith(".itch.io")) {
+      return [{ key, label: "itch.io", href: url.href, icon: <Gamepad2 className="h-4 w-4" /> }];
+    }
+    if (host === "youtube.com" || host.endsWith(".youtube.com") || host === "youtu.be" || host === "vimeo.com" || host.endsWith(".vimeo.com")) {
+      return [{ key, label: host.includes("vimeo") ? "Vimeo" : "YouTube", href: url.href, icon: <Video className="h-4 w-4" /> }];
+    }
+    return [{
+      key,
+      label: fallbackLabel,
+      href: url.href,
+      icon: key === "showreelUrl" ? <Video className="h-4 w-4" /> : <Globe className="h-4 w-4" />,
+    }];
+  });
+
+  const renderProfileLinks = (profile: MatchProfile) => {
+    const links = profileLinks(profile);
+    if (links.length === 0) return null;
+    return (
+      <div className="flex items-center gap-2" aria-label="Candidate profile links">
+        {links.map(({ key, label, href, icon }) => (
+          <a
+            key={key}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={label}
+            title={label}
+            onClick={(event) => event.stopPropagation()}
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+          >
+            {icon}
+          </a>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4">
       <div>
@@ -333,6 +400,7 @@ function TalentDirectory({
                     </span>
                     <span className="shrink-0 text-xs font-medium text-primary underline">View profile</span>
                   </button>
+                  {renderProfileLinks(talent)}
                   <div className="flex flex-wrap gap-1">
                     {getString(talent, "experienceLevel") && <Badge variant="outline" className="text-[10px]">{getString(talent, "experienceLevel")}</Badge>}
                     {skills.slice(0, 5).map((skill) => <Badge key={skill} variant="secondary" className="text-[10px]">{skill}</Badge>)}
@@ -384,17 +452,8 @@ function TalentDirectory({
               ))}
               <section className="space-y-2">
                 <h3 className="font-display text-xs font-bold tracking-wider text-muted-foreground">PROFILE LINKS</h3>
-                {[
-                  ["Portfolio", "portfolioUrl"],
-                  ["Showreel", "showreelUrl"],
-                  ["LinkedIn", "linkedinUrl"],
-                  ["GitHub", "githubUrl"],
-                ].filter(([, key]) => getString(selectedTalent, key)).map(([label, key]) => (
-                  <a key={key} href={getString(selectedTalent, key)} target="_blank" rel="noreferrer" className="block text-sm text-primary underline">
-                    {label}
-                  </a>
-                ))}
-                {["portfolioUrl", "showreelUrl", "linkedinUrl", "githubUrl"].every((key) => !getString(selectedTalent, key)) && (
+                {renderProfileLinks(selectedTalent)}
+                {profileLinks(selectedTalent).length === 0 && (
                   <p className="text-sm text-muted-foreground">No profile links added.</p>
                 )}
               </section>
