@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import SwipeCard from "@/components/SwipeCard";
 import { Badge } from "@/components/ui/badge";
 import { useRecruiter } from "@/context/RecruiterContext";
-import { useAuth } from "@/hooks/useAuth";
 import { useMatchmaking, type MatchInterest } from "@/hooks/useMatchmaking";
 import type { Job } from "@/data/jobs";
+import { DEMO_RESET_EVENT } from "@/data/demoMatchmaking";
 
 export default function MatchPage() {
   const { viewMode } = useRecruiter();
@@ -19,7 +19,6 @@ function TalentMatchReview() {
   const navigate = useNavigate();
   const { postedJobs } = useRecruiter();
   const { user, profiles, interests, jobOwners, sendInterest, decideInterest } = useMatchmaking();
-  const { demoAccountType } = useAuth();
   const dismissedKey = `levelup_dismissed:${user?.id ?? "guest"}`;
   const [dismissed, setDismissed] = useState<string[]>(() => {
     try {
@@ -31,6 +30,11 @@ function TalentMatchReview() {
   const [showMatches, setShowMatches] = useState(false);
   const [buttonExit, setButtonExit] = useState<"left" | "right" | null>(null);
   useEffect(() => localStorage.setItem(dismissedKey, JSON.stringify(dismissed)), [dismissedKey, dismissed]);
+  useEffect(() => {
+    const reset = () => setDismissed([]);
+    window.addEventListener(DEMO_RESET_EVENT, reset);
+    return () => window.removeEventListener(DEMO_RESET_EVENT, reset);
+  }, []);
   const dismissJob = useCallback((jobId: string) => setDismissed((previous) => previous.includes(jobId) ? previous : [...previous, jobId]), []);
   const isDismissed = useCallback((jobId: string) => dismissed.includes(jobId), [dismissed]);
   const resetAll = () => setDismissed([]);
@@ -114,11 +118,7 @@ function TalentMatchReview() {
                   <p className="font-display text-sm font-bold">{person?.full_name || person?.company_name || "Matched connection"}</p>
                   <p className="text-[10px] text-muted-foreground">{job?.title || (interest.interest_type === "company" ? "Company interest" : person?.headline || "Recruiter connection")}</p>
                 </div>
-                {demoAccountType ? (
-                  <Badge variant="secondary">Matched</Badge>
-                ) : (
-                  <Button size="sm" onClick={() => navigate(`/messages?match=${interest.id}`)}><MessageSquare className="mr-1 h-3.5 w-3.5" />Message</Button>
-                )}
+                <Button size="sm" onClick={() => navigate(`/messages?match=${interest.id}`)}><MessageSquare className="mr-1 h-3.5 w-3.5" />Message</Button>
               </div>
             );
           })}
@@ -171,7 +171,6 @@ function TalentMatchReview() {
 
 function RecruiterMatchReview() {
   const navigate = useNavigate();
-  const { demoAccountType } = useAuth();
   const { postedJobs } = useRecruiter();
   const { user, profiles, interests, decideInterest, loading } = useMatchmaking();
   const incoming = interests.filter((interest) =>
@@ -216,11 +215,7 @@ function RecruiterMatchReview() {
                   {interest.interest_type === "role" ? "Interested in a role" : interest.interest_type === "company" ? "Interested in your company" : "Accepted your recruiter request"}
                 </p>
               </div>
-              {demoAccountType ? (
-                <Badge variant="secondary">Matched</Badge>
-              ) : (
-                <Button size="sm" onClick={() => navigate(`/messages?match=${interest.id}`)}><MessageSquare className="mr-1 h-3.5 w-3.5" />Message</Button>
-              )}
+              <Button size="sm" onClick={() => navigate(`/messages?match=${interest.id}`)}><MessageSquare className="mr-1 h-3.5 w-3.5" />Message</Button>
             </div>
           );
         })}

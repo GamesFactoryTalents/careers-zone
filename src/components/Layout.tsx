@@ -3,6 +3,9 @@ import { Home, Gamepad2, Briefcase, User, Bot, Building2, CalendarDays, MessageS
 import { useRecruiter } from "@/context/RecruiterContext";
 import { useAuth } from "@/hooks/useAuth";
 import AccountSignOutButton from "@/components/AccountSignOutButton";
+import { Button } from "@/components/ui/button";
+import { resetDemoInterests } from "@/data/demoMatchmaking";
+import { toast } from "sonner";
 
 const talentTabs = [
   { path: "/", label: "Home", icon: Home },
@@ -18,7 +21,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { viewMode } = useRecruiter();
-  const { demoAccountType } = useAuth();
+  const { demoAccountType, startDemo } = useAuth();
   const tabs =
     viewMode === "recruiter"
       ? talentTabs.map((t) => {
@@ -35,11 +38,27 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* Content */}
       <main className={`flex-1 pb-20 ${isMatchPage ? "flex flex-col" : "overflow-y-auto"}`}>
         {demoAccountType && (
-          <div className="mx-auto mt-3 flex max-w-lg items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent/10 px-3 py-2">
-            <p className="text-xs text-muted-foreground">
-              {demoAccountType === "talent" ? "Talent" : "Recruiter"} demo — no account/profile created; data isn't sent to Supabase.
-            </p>
-            <AccountSignOutButton />
+          <div className="mx-auto mt-3 max-w-lg space-y-2 rounded-xl border border-accent/30 bg-accent/10 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">Conference demo · no account required · browser-only sample data</p>
+              <AccountSignOutButton />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm" variant={demoAccountType === "talent" ? "default" : "outline"} onClick={() => startDemo("talent")}>Talent view</Button>
+              <Button size="sm" variant={demoAccountType === "recruiter" ? "default" : "outline"} onClick={() => startDemo("recruiter")}>Recruiter view</Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  localStorage.removeItem("levelup_dismissed:demo-talent");
+                  localStorage.removeItem("levelup_recruiter_dismissed:demo-recruiter");
+                  resetDemoInterests();
+                  toast.success("Demo reset");
+                }}
+              >
+                Reset demo
+              </Button>
+            </div>
           </div>
         )}
         <div className={`${isMatchPage ? "flex-1 flex flex-col px-4 py-4" : "max-w-lg mx-auto px-4 py-4"}`}>

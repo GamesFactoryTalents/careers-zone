@@ -18,6 +18,7 @@ import NotFound from "@/pages/NotFound";
 import { RecruiterProvider, useRecruiter } from "@/context/RecruiterContext";
 import { AuthProvider } from "@/context/AuthContext";
 import RequireAuth from "@/components/RequireAuth";
+import DemoPage from "@/pages/DemoPage";
 
 const queryClient = new QueryClient();
 
@@ -49,6 +50,7 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/auth" element={<AuthPage />} />
+                <Route path="/demo" element={<DemoPage />} />
                 <Route path="/match" element={<RequireAuth><MatchPage /></RequireAuth>} />
                 <Route path="/jobs" element={<JobsRoute />} />
                 <Route path="/events" element={<EventsPage />} />

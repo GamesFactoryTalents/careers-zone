@@ -4,9 +4,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import {
   DEMO_INTERESTS_KEY,
+  DEMO_JOBS,
   DEMO_PROFILES,
   DEMO_RECRUITER_ID,
   DEMO_TALENT_ID,
+  DEMO_RESET_EVENT,
   loadDemoInterests,
 } from "@/data/demoMatchmaking";
 
@@ -34,7 +36,7 @@ export interface MatchInterest {
 export function useMatchmaking() {
   const { user, demoAccountType } = useAuth();
   const demoUserId = demoAccountType === "talent" ? DEMO_TALENT_ID : demoAccountType === "recruiter" ? DEMO_RECRUITER_ID : null;
-  const currentUserId = user?.id ?? demoUserId;
+  const currentUserId = demoUserId ?? user?.id;
   const [profiles, setProfiles] = useState<MatchProfile[]>([]);
   const [interests, setInterests] = useState<MatchInterest[]>(loadDemoInterests);
   const [jobOwners, setJobOwners] = useState<Record<string, string>>({});
@@ -44,7 +46,7 @@ export function useMatchmaking() {
     if (demoAccountType) {
       setProfiles(DEMO_PROFILES);
       setInterests(loadDemoInterests());
-      setJobOwners({ "demo-gameplay-programmer": DEMO_RECRUITER_ID });
+      setJobOwners(Object.fromEntries(DEMO_JOBS.map((job) => [job.id, DEMO_RECRUITER_ID])));
       setLoading(false);
       return;
     }
@@ -83,7 +85,9 @@ export function useMatchmaking() {
   useEffect(() => {
     if (demoAccountType) {
       void refresh();
-      return;
+      const reset = () => { void refresh(); };
+      window.addEventListener(DEMO_RESET_EVENT, reset);
+      return () => window.removeEventListener(DEMO_RESET_EVENT, reset);
     }
     if (!user) {
       void refresh();
@@ -163,7 +167,7 @@ export function useMatchmaking() {
   }, [currentUserId, interests]);
 
   return {
-    user: user ?? (demoUserId ? { id: demoUserId } : null),
+    user: demoUserId ? { id: demoUserId } : user,
     profiles,
     interests,
     jobOwners,

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -104,6 +104,9 @@ export default function AuthPage() {
             Recruiter demo
           </Button>
         </div>
+        <p className="text-center text-xs text-muted-foreground">
+          For a full no-login walkthrough, <Link className="font-medium text-primary underline" to="/demo">open the conference demo</Link>.
+        </p>
       </div>
     </div>
   );

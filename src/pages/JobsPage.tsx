@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Filter, X, ExternalLink, Heart, Building2, MapPin } from "lucide-react";
+import { Search, Filter, X, ExternalLink, Heart, Building2, MapPin, Handshake, ArrowLeft } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { JOB_CATEGORIES, JOB_LOCATIONS, type Job } from "@/data/jobs";
 import PremiumBanner from "@/components/PremiumBanner";
 import { useRecruiter } from "@/context/RecruiterContext";
 import { useMatchmaking, type MatchProfile, type MatchInterest } from "@/hooks/useMatchmaking";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function JobsPage() {
   const [searchParams] = useSearchParams();
@@ -22,7 +23,7 @@ export default function JobsPage() {
   const [directory, setDirectory] = useState<"roles" | "companies">("roles");
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const { viewMode, allJobs } = useRecruiter();
-  const { profiles, loading: matchingLoading, jobOwners, sendInterest, interestFor } = useMatchmaking();
+  const { user, profiles, loading: matchingLoading, jobOwners, sendInterest, interestFor } = useMatchmaking();
 
   useEffect(() => {
     const selectedId = searchParams.get("selected");
@@ -45,7 +46,13 @@ export default function JobsPage() {
   }, [allJobs, search, category, location, workMode]);
 
   if (viewMode === "recruiter") {
-    return <TalentDirectory profiles={profiles} loading={matchingLoading} sendInterest={sendInterest} interestFor={interestFor} />;
+    return <TalentDirectory
+      profiles={profiles}
+      loading={matchingLoading}
+      recruiterId={user?.id ?? "recruiter"}
+      sendInterest={sendInterest}
+      interestFor={interestFor}
+    />;
   }
 
   if (selectedJob) {
@@ -238,25 +245,62 @@ export default function JobsPage() {
 function TalentDirectory({
   profiles,
   loading,
+  recruiterId,
   sendInterest,
   interestFor,
 }: {
   profiles: MatchProfile[];
   loading: boolean;
+  recruiterId: string;
   sendInterest: (receiverId: string, interestType: MatchInterest["interest_type"], jobId?: string) => Promise<boolean>;
   interestFor: (receiverId: string, interestType: MatchInterest["interest_type"], jobId?: string) => MatchInterest | undefined;
 }) {
   const [search, setSearch] = useState("");
+  const [selectedTalent, setSelectedTalent] = useState<MatchProfile | null>(null);
+  const dismissedKey = `levelup_recruiter_dismissed:${recruiterId}`;
+  const [dismissed, setDismissed] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(dismissedKey) || "[]") as string[];
+    } catch {
+      return [];
+    }
+  });
+  useEffect(() => {
+    setDismissed(() => {
+      try {
+        return JSON.parse(localStorage.getItem(dismissedKey) || "[]") as string[];
+      } catch {
+        return [];
+      }
+    });
+  }, [dismissedKey]);
+  useEffect(() => localStorage.setItem(dismissedKey, JSON.stringify(dismissed)), [dismissed, dismissedKey]);
   const talents = profiles.filter((profile) => profile.account_type === "talent").filter((profile) =>
     `${profile.full_name} ${profile.headline} ${profile.location} ${Array.isArray(profile.profile.skills) ? profile.profile.skills.join(" ") : ""}`
       .toLowerCase().includes(search.toLowerCase()),
   );
+  const availableTalents = talents.filter((talent) => !dismissed.includes(talent.user_id) && !interestFor(talent.user_id, "talent"));
+  const dismissTalent = (talentId: string) => {
+    setDismissed((current) => current.includes(talentId) ? current : [...current, talentId]);
+    setSelectedTalent(null);
+  };
+  const expressInterest = async (talent: MatchProfile) => {
+    await sendInterest(talent.user_id, "talent");
+    setSelectedTalent(null);
+  };
+
+  const getString = (profile: MatchProfile, key: string) => {
+    const value = profile.profile[key];
+    return typeof value === "string" ? value : "";
+  };
+  const getSkills = (profile: MatchProfile) =>
+    Array.isArray(profile.profile.skills) ? profile.profile.skills.filter((skill): skill is string => typeof skill === "string") : [];
 
   return (
     <div className="space-y-4">
       <div>
         <h1 className="font-display text-2xl font-bold">Talent</h1>
-        <p className="mt-1 text-xs text-muted-foreground">Browse talent profiles and express interest. They can accept or decline your request.</p>
+        <p className="mt-1 text-xs text-muted-foreground">Review full profiles, then show interest or pass. Talents can accept or decline your request.</p>
       </div>
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -264,44 +308,108 @@ function TalentDirectory({
       </div>
       {loading ? (
         <p className="py-8 text-center text-sm text-muted-foreground">Loading talent profiles…</p>
-      ) : talents.length === 0 ? (
+      ) : availableTalents.length === 0 ? (
         <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-          No talent profiles found yet. Talents appear here after they create an account and complete their profile.
+          {talents.length === 0 ? "No talent profiles found yet." : "You've reviewed everyone matching this search."}
         </p>
       ) : (
-        <div className="space-y-3">
-          {talents.map((talent) => {
-            const interest = interestFor(talent.user_id, "talent");
-            const skills = Array.isArray(talent.profile.skills) ? talent.profile.skills.filter((skill): skill is string => typeof skill === "string") : [];
-            return (
-              <article key={talent.user_id} className="space-y-3 rounded-xl border border-border bg-card p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h2 className="font-display text-base font-bold">{talent.full_name || "Talent profile"}</h2>
-                    <p className="text-xs text-muted-foreground">{talent.headline || "Game industry professional"}</p>
-                    {talent.location && <p className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground"><MapPin className="h-3 w-3" />{talent.location}</p>}
-                  </div>
-                  <Button
-                    size="sm"
-                    variant={interest ? "secondary" : "outline"}
-                    className={interest?.status === "accepted" ? "shrink-0 border-xp text-xp" : "shrink-0 border-primary/30"}
-                    disabled={interest?.status !== undefined}
-                    onClick={() => void sendInterest(talent.user_id, "talent")}
-                  >
-                    <Heart className={`mr-1 h-3.5 w-3.5 ${interest ? "fill-current" : ""}`} />
-                    {interest ? interest.status === "accepted" ? "Matched" : interest.status === "declined" ? "Declined" : "Requested" : "Show interest"}
-                  </Button>
-                </div>
-                {skills.length > 0 && (
+        <>
+          <p className="text-xs text-muted-foreground">{availableTalents.length} candidate{availableTalents.length === 1 ? "" : "s"} to review</p>
+          <div className="space-y-3">
+            {availableTalents.map((talent) => {
+              const skills = getSkills(talent);
+              return (
+                <article key={talent.user_id} className="space-y-3 rounded-2xl border border-border bg-card p-4">
+                  <button className="flex w-full items-start gap-3 text-left" onClick={() => setSelectedTalent(talent)}>
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10 font-display text-lg font-bold text-primary">
+                      {(talent.full_name || "T").split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase()}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-display text-base font-bold">{talent.full_name || "Talent profile"}</span>
+                      <span className="block text-xs text-muted-foreground">{talent.headline || "Game industry professional"}</span>
+                      <span className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <MapPin className="h-3 w-3" />{talent.location || "Location not set"}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-xs font-medium text-primary underline">View profile</span>
+                  </button>
                   <div className="flex flex-wrap gap-1">
-                    {skills.slice(0, 8).map((skill) => <Badge key={skill} variant="secondary" className="text-[10px]">{skill}</Badge>)}
+                    {getString(talent, "experienceLevel") && <Badge variant="outline" className="text-[10px]">{getString(talent, "experienceLevel")}</Badge>}
+                    {skills.slice(0, 5).map((skill) => <Badge key={skill} variant="secondary" className="text-[10px]">{skill}</Badge>)}
                   </div>
-                )}
-              </article>
-            );
-          })}
-        </div>
+                  {getString(talent, "workExperience") && (
+                    <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">{getString(talent, "workExperience")}</p>
+                  )}
+                  <div className="grid grid-cols-2 gap-2 border-t border-border pt-3">
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => dismissTalent(talent.user_id)}>
+                      <ArrowLeft className="h-4 w-4" /> Not this time
+                    </Button>
+                    <Button size="sm" className="gap-1.5" onClick={() => void expressInterest(talent)}>
+                      <Handshake className="h-4 w-4" /> I&apos;m interested
+                    </Button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </>
       )}
+      <Dialog open={!!selectedTalent} onOpenChange={(open) => { if (!open) setSelectedTalent(null); }}>
+        {selectedTalent && (
+          <DialogContent className="max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{selectedTalent.full_name}</DialogTitle>
+              <DialogDescription>{selectedTalent.headline} · {selectedTalent.location || "Location not set"}</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              {getSkills(selectedTalent).length > 0 && (
+                <section className="space-y-2">
+                  <h3 className="font-display text-xs font-bold tracking-wider text-muted-foreground">SKILLS</h3>
+                  <div className="flex flex-wrap gap-1.5">{getSkills(selectedTalent).map((skill) => <Badge key={skill} variant="secondary">{skill}</Badge>)}</div>
+                </section>
+              )}
+              {[
+                ["EXPERIENCE", "workExperience"],
+                ["EDUCATION", "education"],
+                ["SHIPPED TITLES", "shippedTitles"],
+                ["AVAILABILITY", "availability"],
+                ["WORK MODE", "workMode"],
+                ["PREFERRED LOCATION", "preferredCountry"],
+                ["ABOUT", "coverLetter"],
+              ].map(([label, key]) => getString(selectedTalent, key) && (
+                <section key={key} className="space-y-1">
+                  <h3 className="font-display text-xs font-bold tracking-wider text-muted-foreground">{label}</h3>
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{getString(selectedTalent, key)}</p>
+                </section>
+              ))}
+              <section className="space-y-2">
+                <h3 className="font-display text-xs font-bold tracking-wider text-muted-foreground">PROFILE LINKS</h3>
+                {[
+                  ["Portfolio", "portfolioUrl"],
+                  ["Showreel", "showreelUrl"],
+                  ["LinkedIn", "linkedinUrl"],
+                  ["GitHub", "githubUrl"],
+                ].filter(([, key]) => getString(selectedTalent, key)).map(([label, key]) => (
+                  <a key={key} href={getString(selectedTalent, key)} target="_blank" rel="noreferrer" className="block text-sm text-primary underline">
+                    {label}
+                  </a>
+                ))}
+                {["portfolioUrl", "showreelUrl", "linkedinUrl", "githubUrl"].every((key) => !getString(selectedTalent, key)) && (
+                  <p className="text-sm text-muted-foreground">No profile links added.</p>
+                )}
+              </section>
+              <div className="grid grid-cols-2 gap-2 border-t border-border pt-4">
+                <Button variant="outline" className="gap-1.5" onClick={() => dismissTalent(selectedTalent.user_id)}>
+                  <ArrowLeft className="h-4 w-4" /> Not this time
+                </Button>
+                <Button className="gap-1.5" onClick={() => void expressInterest(selectedTalent)}>
+                  <Handshake className="h-4 w-4" /> I&apos;m interested
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        )}
+      </Dialog>
     </div>
   );
 }

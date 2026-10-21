@@ -7,7 +7,9 @@ import type { ViewMode } from "@/types/company";
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [demoAccountType, setDemoAccountType] = useState<ViewMode | null>(null);
+  const [demoAccountType, setDemoAccountType] = useState<ViewMode | null>(() =>
+    window.location.pathname === "/demo" ? "talent" : null,
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -17,14 +19,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error("Unable to restore authentication session", error);
       } else if (mounted) {
         setSession(data.session);
-        if (data.session) setDemoAccountType(null);
+        if (data.session && window.location.pathname !== "/demo") setDemoAccountType(null);
       }
       if (mounted) setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
-      if (nextSession) setDemoAccountType(null);
+      if (nextSession && window.location.pathname !== "/demo") setDemoAccountType(null);
       setLoading(false);
     });
 

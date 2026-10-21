@@ -5,7 +5,7 @@ import { applyCompanyToJobs, buildPostedJob, mergeJobs, type JobDraft } from "@/
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { DEMO_COMPANY, DEMO_JOBS } from "@/data/demoMatchmaking";
+import { DEMO_COMPANY, DEMO_JOBS, DEMO_RESET_EVENT } from "@/data/demoMatchmaking";
 
 interface StoredJob {
   ownerId: string;
@@ -94,15 +94,20 @@ export function RecruiterProvider({ children }: { children: ReactNode }) {
     }
   }, [company, demoAccountType, localPostedJobs, user]);
   useEffect(() => {
+    if (demoAccountType) {
+      loadingUserId.current = null;
+      setLoadedCompanyUserId(null);
+      setStoredJobs([]);
+      setAccountType(demoAccountType);
+      setViewMode(demoAccountType);
+      setCompany(demoAccountType === "recruiter" ? DEMO_COMPANY : DEFAULT_COMPANY);
+      return;
+    }
     if (!user) {
       loadingUserId.current = null;
       setLoadedCompanyUserId(null);
       setStoredJobs([]);
-      setAccountType(demoAccountType ?? "talent");
-      if (demoAccountType) {
-        setViewMode(demoAccountType);
-        setCompany(demoAccountType === "recruiter" ? DEMO_COMPANY : DEFAULT_COMPANY);
-      }
+      setAccountType("talent");
       return;
     }
     if (loadingUserId.current !== user.id) {
@@ -140,6 +145,13 @@ export function RecruiterProvider({ children }: { children: ReactNode }) {
     return () => { active = false; };
   }, [demoAccountType, user]);
   useEffect(() => {
+    const reset = () => {
+      setCompany(demoAccountType === "recruiter" ? DEMO_COMPANY : DEFAULT_COMPANY);
+    };
+    window.addEventListener(DEMO_RESET_EVENT, reset);
+    return () => window.removeEventListener(DEMO_RESET_EVENT, reset);
+  }, [demoAccountType]);
+  useEffect(() => {
     if (demoAccountType || !user || loadedCompanyUserId !== user.id) return;
     if (accountType !== "recruiter") return;
     const timeout = window.setTimeout(() => {
@@ -174,6 +186,7 @@ export function RecruiterProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const publishJob = useCallback(async (draft: JobDraft) => {
+      if (demoAccountType) throw new Error("Publishing is disabled in the conference demo.");
       if (!user) throw new Error("Create a recruiter account before publishing a role.");
       const job = buildPostedJob(draft, company);
       const { error } = await supabase.from("platform_jobs").insert({
@@ -184,18 +197,20 @@ export function RecruiterProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
       setStoredJobs((prev) => [{ ownerId: user.id, job }, ...prev.filter((item) => item.job.id !== job.id)]);
       return job;
-    }, [company, user]);
+    }, [company, demoAccountType, user]);
 
   const removeJob = useCallback(async (id: string) => {
+      if (demoAccountType) throw new Error("Roles cannot be removed in the conference demo.");
       const job = postedJobs.find((j) => j.id === id);
       if (!job || !user) return undefined;
       const { error } = await supabase.from("platform_jobs").delete().eq("id", id).eq("recruiter_id", user.id);
       if (error) throw error;
       setStoredJobs((prev) => prev.filter((item) => item.ownerId !== user.id || item.job.id !== id));
       return job;
-    }, [postedJobs, user]);
+    }, [demoAccountType, postedJobs, user]);
 
   const restoreJob = useCallback(async (job: Job) => {
+    if (demoAccountType) throw new Error("Roles cannot be restored in the conference demo.");
     if (!user) throw new Error("Create a recruiter account before restoring a role.");
     const { error } = await supabase.from("platform_jobs").insert({
       id: job.id,
@@ -204,11 +219,11 @@ export function RecruiterProvider({ children }: { children: ReactNode }) {
     });
     if (error) throw error;
     setStoredJobs((prev) => (prev.some((item) => item.job.id === job.id) ? prev : [{ ownerId: user.id, job }, ...prev]));
-  }, [user]);
+  }, [demoAccountType, user]);
 
   const allJobs = useMemo(
-    () => mergeJobs(user ? storedJobs.map((item) => item.job) : postedJobs, JOBS),
-    [postedJobs, storedJobs, user],
+    () => mergeJobs(user && !demoAccountType ? storedJobs.map((item) => item.job) : postedJobs, JOBS),
+    [demoAccountType, postedJobs, storedJobs, user],
   );
 
   return (

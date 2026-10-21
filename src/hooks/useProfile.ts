@@ -3,7 +3,7 @@ import { UserProfile, DEFAULT_PROFILE } from "@/types/profile";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { DEMO_TALENT_PROFILE } from "@/data/demoMatchmaking";
+import { DEMO_RESET_EVENT, DEMO_TALENT_PROFILE } from "@/data/demoMatchmaking";
 
 const PROFILE_KEY = "levelup_profile";
 
@@ -52,6 +52,14 @@ export function useProfile() {
       });
     return () => { active = false; };
   }, [demoAccountType, user]);
+
+  useEffect(() => {
+    if (demoAccountType) {
+      const reset = () => setProfile(demoAccountType === "talent" ? DEMO_TALENT_PROFILE : DEFAULT_PROFILE);
+      window.addEventListener(DEMO_RESET_EVENT, reset);
+      return () => window.removeEventListener(DEMO_RESET_EVENT, reset);
+    }
+  }, [demoAccountType]);
 
   useEffect(() => {
     if (demoAccountType) return;

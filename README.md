@@ -91,6 +91,7 @@
 ### Accounts, matching, and messaging
 - Email/password sign-up and sign-in use Supabase Auth; profiles are classified as talent or recruiter
 - Talent and recruiter demo access is available from the sign-in page; it is temporary, does not create an account/profile, and keeps sample match decisions in the browser only. The recruiter demo includes a sample company and published roles; the talent demo includes a sample profile.
+- The public `/demo` route provides a no-login conference walkthrough with a talent/recruiter switch, sample company roles and talent profiles, local match decisions, and browser-only chat.
 - Talent and company profiles, platform-published roles, interest decisions, and messages are stored in Supabase
 - Interests stay pending until the recipient accepts or declines; only accepted matches can access chat
 - Row-level security limits profile visibility, role publishing, interest decisions, and messages to the appropriate users

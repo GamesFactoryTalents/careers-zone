@@ -18,7 +18,40 @@ export const DEMO_COMPANY: CompanyProfile = {
   recruiterTitle: "Talent Partner",
 };
 
-export const DEMO_JOBS: Job[] = [
+const DEMO_ADDITIONAL_JOBS: Job[] = [
+  {
+    id: "demo-technical-artist",
+    title: "Technical Artist",
+    company: DEMO_COMPANY.name,
+    location: DEMO_COMPANY.location,
+    workMode: "Remote",
+    category: "Technical Artist",
+    experienceLevel: "Senior",
+    description: "Bridge art and engineering by building tools, shaders, and efficient content workflows.",
+    requirements: ["Experience with Unity or Unreal", "Shader and material authoring", "Python tools or pipeline experience"],
+    tags: ["Unreal Engine", "Shaders", "Python", "Pipeline"],
+    postedDate: "2026-10-18",
+    applyUrl: "https://example.com/careers",
+    source: "recruiter",
+  },
+  {
+    id: "demo-game-producer",
+    title: "Game Producer",
+    company: DEMO_COMPANY.name,
+    location: DEMO_COMPANY.location,
+    workMode: "Hybrid",
+    category: "Producer",
+    experienceLevel: "Senior",
+    description: "Help a cross-functional team plan, communicate, and deliver a polished cooperative game.",
+    requirements: ["Experience producing games", "Strong communication and planning", "Comfortable with agile workflows"],
+    tags: ["Production", "Agile", "Jira", "Game Development"],
+    postedDate: "2026-10-17",
+    applyUrl: "https://example.com/careers",
+    source: "recruiter",
+  },
+];
+
+const DEMO_CORE_JOBS: Job[] = [
   {
     id: "demo-gameplay-programmer",
     title: "Gameplay Programmer",
@@ -51,6 +84,8 @@ export const DEMO_JOBS: Job[] = [
   },
 ];
 
+export const DEMO_JOBS = [...DEMO_CORE_JOBS, ...DEMO_ADDITIONAL_JOBS];
+
 export const DEMO_TALENT_PROFILE: UserProfile = {
   profilePicture: "",
   name: "Alex Rivera",
@@ -69,7 +104,7 @@ export const DEMO_TALENT_PROFILE: UserProfile = {
   studioSize: "Small (20-50)",
   workMode: "Hybrid",
   preferredCountry: "Finland",
-  cvFileName: "",
+  cvFileName: "alex-rivera-gameplay-programmer-cv.pdf",
   salaryMin: "",
   salaryMax: "",
   favoriteGames: "Hades, It Takes Two",
@@ -90,6 +125,57 @@ export const DEMO_PROFILES: MatchProfile[] = [
     company: {},
   },
   {
+    user_id: "demo-talent-mika",
+    account_type: "talent",
+    full_name: "Mika Koskinen",
+    headline: "3D Environment Artist",
+    location: "Espoo, Finland",
+    profile: {
+      role: "3D Artist",
+      experienceLevel: "Mid",
+      skills: ["Blender", "Substance Painter", "Maya", "Environment Art"],
+      workExperience: "Created stylized environments and props for two indie games.",
+      portfolioUrl: "https://example.com/mika-portfolio",
+      shippedTitles: "Northbound, Tiny Harbor",
+    },
+    company_name: "",
+    company: {},
+  },
+  {
+    user_id: "demo-talent-jordan",
+    account_type: "talent",
+    full_name: "Jordan Kim",
+    headline: "Senior Technical Artist",
+    location: "Stockholm, Sweden",
+    profile: {
+      role: "Technical Artist",
+      experienceLevel: "Senior",
+      skills: ["Unreal Engine", "Shaders", "Python", "Houdini"],
+      workExperience: "Built shader libraries and procedural art tools for a cross-platform action game.",
+      portfolioUrl: "https://example.com/jordan-portfolio",
+      shippedTitles: "Starfall Arena",
+    },
+    company_name: "",
+    company: {},
+  },
+  {
+    user_id: "demo-talent-sam",
+    account_type: "talent",
+    full_name: "Sam Okafor",
+    headline: "Game Producer",
+    location: "Berlin, Germany",
+    profile: {
+      role: "Producer",
+      experienceLevel: "Senior",
+      skills: ["Production", "Agile", "Jira", "Team Leadership"],
+      workExperience: "Produced two indie titles from pre-production through launch across design, art, and engineering teams.",
+      linkedinUrl: "https://linkedin.com",
+      shippedTitles: "Moonbase Garden, Neon Drift",
+    },
+    company_name: "",
+    company: {},
+  },
+  {
     user_id: DEMO_RECRUITER_ID,
     account_type: "recruiter",
     full_name: DEMO_COMPANY.recruiterName,
@@ -102,6 +188,8 @@ export const DEMO_PROFILES: MatchProfile[] = [
 ];
 
 export const DEMO_INTERESTS_KEY = "levelup_demo_match_interests";
+export const DEMO_MESSAGES_KEY = "levelup_demo_match_messages";
+export const DEMO_RESET_EVENT = "levelup-demo-reset";
 
 export function loadDemoInterests(): MatchInterest[] {
   try {
@@ -110,4 +198,10 @@ export function loadDemoInterests(): MatchInterest[] {
   } catch {
     return [];
   }
+}
+
+export function resetDemoInterests(): void {
+  localStorage.removeItem(DEMO_INTERESTS_KEY);
+  localStorage.removeItem(DEMO_MESSAGES_KEY);
+  window.dispatchEvent(new Event(DEMO_RESET_EVENT));
 }

@@ -7,11 +7,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import JobCard from "@/components/JobCard";
 import { useRecruiter } from "@/context/RecruiterContext";
 import { useMatchmaking } from "@/hooks/useMatchmaking";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function RecruiterHome() {
   const navigate = useNavigate();
   const { company, postedJobs, allJobs, removeJob, restoreJob } = useRecruiter();
   const { user, profiles, interests } = useMatchmaking();
+  const { demoAccountType } = useAuth();
   const hasCompany = company.name.trim() !== "";
   const initials = company.name ? company.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) : "?";
   const incomingInterests = interests.filter((interest) =>
@@ -124,7 +126,7 @@ export default function RecruiterHome() {
         ))}
       </div>
 
-      <motion.button
+      {!demoAccountType && <motion.button
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
@@ -141,7 +143,7 @@ export default function RecruiterHome() {
             </div>
           </div>
         </div>
-      </motion.button>
+      </motion.button>}
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
@@ -206,13 +208,15 @@ export default function RecruiterHome() {
           postedJobs.map((job) => (
             <div key={job.id} className="relative">
               <JobCard job={job} onClick={() => navigate(`/jobs?selected=${job.id}`)} />
-              <button
-                onClick={() => handleRemove(job.id)}
-                aria-label={`Unpublish ${job.title}`}
-                className="absolute bottom-3 right-3 rounded-full p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+              {!demoAccountType && (
+                <button
+                  onClick={() => handleRemove(job.id)}
+                  aria-label={`Unpublish ${job.title}`}
+                  className="absolute bottom-3 right-3 rounded-full p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
             </div>
           ))
         )}

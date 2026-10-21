@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMatchmaking } from "@/hooks/useMatchmaking";
 import { supabase } from "@/integrations/supabase/client";
+import { DEMO_MESSAGES_KEY, DEMO_RESET_EVENT } from "@/data/demoMatchmaking";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Message {
   id: string;
@@ -18,6 +20,7 @@ interface Message {
 export default function MessagesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, profiles, interests } = useMatchmaking();
+  const { demoAccountType } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
@@ -39,6 +42,17 @@ export default function MessagesPage() {
     let active = true;
     setLoading(true);
     const loadMessages = async () => {
+      if (demoAccountType) {
+        try {
+          const saved = JSON.parse(localStorage.getItem(DEMO_MESSAGES_KEY) || "[]") as Message[];
+          setMessages(saved.filter((message) => message.interest_id === selected.id));
+        } catch (error) {
+          toast.error(error instanceof Error ? `Couldn't load demo messages: ${error.message}` : "Couldn't load demo messages.");
+          setMessages([]);
+        }
+        setLoading(false);
+        return;
+      }
       const { data, error } = await supabase.from("match_messages").select("*")
         .eq("interest_id", selected.id).order("created_at", { ascending: true });
       if (!active) return;
@@ -50,6 +64,14 @@ export default function MessagesPage() {
       setLoading(false);
     };
     void loadMessages();
+    if (demoAccountType) {
+      const reset = () => { void loadMessages(); };
+      window.addEventListener(DEMO_RESET_EVENT, reset);
+      return () => {
+        active = false;
+        window.removeEventListener(DEMO_RESET_EVENT, reset);
+      };
+    }
     const channel = supabase.channel(`messages-${selected.id}`)
       .on("postgres_changes", {
         event: "INSERT",
@@ -62,7 +84,7 @@ export default function MessagesPage() {
       active = false;
       void supabase.removeChannel(channel);
     };
-  }, [selected]);
+  }, [demoAccountType, selected]);
 
   useEffect(() => {
     if (!requestedId && selected) setSearchParams({ match: selected.id }, { replace: true });
@@ -71,6 +93,25 @@ export default function MessagesPage() {
   const send = useCallback(async () => {
     const body = draft.trim();
     if (!selected || !user || !body) return;
+    if (demoAccountType) {
+      try {
+        const existing = JSON.parse(localStorage.getItem(DEMO_MESSAGES_KEY) || "[]") as Message[];
+        const message: Message = {
+          id: `demo-message-${Date.now()}`,
+          interest_id: selected.id,
+          sender_id: user.id,
+          body,
+          created_at: new Date().toISOString(),
+        };
+        const next = [...existing, message];
+        localStorage.setItem(DEMO_MESSAGES_KEY, JSON.stringify(next));
+        setMessages(next.filter((item) => item.interest_id === selected.id));
+        setDraft("");
+      } catch (error) {
+        toast.error(error instanceof Error ? `Couldn't send demo message: ${error.message}` : "Couldn't send demo message.");
+      }
+      return;
+    }
     const { error } = await supabase.from("match_messages").insert({
       interest_id: selected.id,
       sender_id: user.id,
@@ -81,7 +122,7 @@ export default function MessagesPage() {
       return;
     }
     setDraft("");
-  }, [draft, selected, user]);
+  }, [demoAccountType, draft, selected, user]);
 
   if (accepted.length === 0) {
     return (
